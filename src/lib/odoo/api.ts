@@ -241,6 +241,33 @@ export async function getPosOrders(
     });
 }
 
+export async function getPosOrderById(
+    orderId: number,
+    credentials?: { uid: number; password: string }
+): Promise<PosOrder | null> {
+    const orders = await searchRead<PosOrder>(
+        'pos.order',
+        [['id', '=', orderId]],
+        [
+            'id',
+            'name',
+            'date_order',
+            'amount_total',
+            'amount_paid',
+            'margin',
+            'state',
+            'user_id',
+            'session_id',
+            'config_id',
+            'partner_id',
+            'company_id',
+        ],
+        { limit: 1 },
+        credentials
+    );
+    return orders.length > 0 ? orders[0] : null;
+}
+
 export async function getPosOrderLines(
     orderIds: number[],
     credentials?: { uid: number; password: string }

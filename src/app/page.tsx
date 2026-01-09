@@ -9,6 +9,8 @@ import Leaderboard from '@/components/dashboard/Leaderboard';
 import AlertPanel from '@/components/dashboard/AlertPanel';
 import CategoryChart from '@/components/charts/CategoryChart';
 import DashboardFilters from '@/components/dashboard/DashboardFilters';
+import OrdersModal from '@/components/modals/OrdersModal';
+import OrderDetailModal from '@/components/modals/OrderDetailModal';
 import styles from './page.module.css';
 
 interface DashboardMetrics {
@@ -61,6 +63,10 @@ export default function DashboardPage() {
   });
   const [stores, setStores] = useState<{ id: number; name: string }[]>([]);
   const [selectedStore, setSelectedStore] = useState<string>('');
+
+  // Drilldown Modal State
+  const [selectedSalesperson, setSelectedSalesperson] = useState<{ id: number; name: string } | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<{ id: number; name: string } | null>(null);
 
   function getToday(): string {
     return new Date().toISOString().split('T')[0];
@@ -261,8 +267,34 @@ export default function DashboardPage() {
           </section>
 
           <section className={styles.leaderboardSection}>
-            <Leaderboard data={metrics.salespersonStats} />
+            <Leaderboard
+              data={metrics.salespersonStats}
+              onSalespersonClick={(id, name) => setSelectedSalesperson({ id, name })}
+            />
           </section>
+
+          {/* Drilldown Modals */}
+          {selectedSalesperson && (
+            <OrdersModal
+              isOpen={!!selectedSalesperson}
+              onClose={() => setSelectedSalesperson(null)}
+              salespersonId={selectedSalesperson.id}
+              salespersonName={selectedSalesperson.name}
+              dateFrom={filters.dateFrom}
+              dateTo={filters.dateTo}
+              storeId={selectedStore ? parseInt(selectedStore) : undefined}
+              onOrderClick={(id, name) => setSelectedOrder({ id, name })}
+            />
+          )}
+
+          {selectedOrder && (
+            <OrderDetailModal
+              isOpen={!!selectedOrder}
+              onClose={() => setSelectedOrder(null)}
+              orderId={selectedOrder.id}
+              orderName={selectedOrder.name}
+            />
+          )}
         </>
       )}
     </div>

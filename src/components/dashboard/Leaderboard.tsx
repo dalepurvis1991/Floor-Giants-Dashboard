@@ -16,11 +16,12 @@ interface SalespersonData {
 
 interface LeaderboardProps {
     data: SalespersonData[];
+    onSalespersonClick?: (id: number, name: string) => void;
 }
 
 type SortKey = 'totalSales' | 'marginPercent' | 'discounts';
 
-export default function Leaderboard({ data }: LeaderboardProps) {
+export default function Leaderboard({ data, onSalespersonClick }: LeaderboardProps) {
     const [sortBy, setSortBy] = useState<SortKey>('totalSales');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
@@ -63,10 +64,11 @@ export default function Leaderboard({ data }: LeaderboardProps) {
                 {sortedData.map((person, index) => (
                     <motion.div
                         key={person.id}
-                        className={styles.row}
+                        className={`${styles.row} ${onSalespersonClick ? styles.clickable : ''}`}
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: index * 0.05 }}
+                        onClick={() => onSalespersonClick?.(person.id, person.name)}
                     >
                         <div className={styles.rank}>
                             <span className={`${styles.rankNumber} ${index < 3 ? styles[`top${index + 1}`] : ''}`}>
