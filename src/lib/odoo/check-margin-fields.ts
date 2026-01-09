@@ -23,7 +23,7 @@ const objectClient = isSecure
 
 async function authenticate(): Promise<number> {
     return new Promise((resolve, reject) => {
-        commonClient.methodCall('authenticate', [db, username, password, {}], (err: Error, uid: number) => {
+        commonClient.methodCall('authenticate', [db, username, password, {}], (err: any, uid: number) => {
             if (err) reject(err);
             else resolve(uid);
         });
@@ -35,7 +35,7 @@ async function getFields(uid: number, model: string): Promise<Record<string, unk
         objectClient.methodCall(
             'execute_kw',
             [db, uid, password, model, 'fields_get', [], { attributes: ['string', 'type'] }],
-            (err: Error, result: Record<string, unknown>) => {
+            (err: any, result: Record<string, unknown>) => {
                 if (err) reject(err);
                 else resolve(result);
             }
