@@ -120,7 +120,7 @@ export async function getSaleOrders(
         'team_id',
         'partner_id',
         'company_id',
-    ], {}, credentials);
+    ], { limit: 10000 }, credentials);
 
     return orders.filter(order => {
         const companyId = Array.isArray(order.company_id) ? order.company_id[0] : 0;
@@ -153,7 +153,8 @@ export async function getSaleOrderLines(
             'price_subtotal',
             'discount',
         ],
-        {},
+        { limit: 10000 },
+        credentials
     );
 }
 
@@ -189,13 +190,13 @@ export async function getProducts(
         'id',
         'name',
         'categ_id',
-    ], {}, credentials);
+    ], { limit: 10000 }, credentials);
 }
 
 export async function getPosConfigs(
     credentials?: { uid: number; password: string }
 ): Promise<PosConfig[]> {
-    return searchRead<PosConfig>('pos.config', [], ['id', 'name'], {}, credentials);
+    return searchRead<PosConfig>('pos.config', [], ['id', 'name'], { limit: 1000 }, credentials);
 }
 
 export async function getPosOrders(
@@ -302,7 +303,7 @@ export async function getProductCategories(
         'name',
         'complete_name',
         'parent_id',
-    ], {}, credentials);
+    ], { limit: 1000 }, credentials);
 }
 
 export async function getRefunds(
@@ -325,7 +326,7 @@ export async function getRefunds(
         'amount_total',
         'user_id',
         'company_id',
-    ], {}, credentials);
+    ], { limit: 10000 }, credentials);
 }
 
 export async function getAccountMoveLines(
@@ -351,5 +352,5 @@ export async function getAccountMoveLines(
         'partner_id',
         'date',
         'parent_state',
-    ], {}, credentials);
+    ], { limit: 10000 }, credentials);
 }

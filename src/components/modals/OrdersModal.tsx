@@ -55,7 +55,7 @@ export default function OrdersModal({
             const response = await fetch(`/api/salespeople/${salespersonId}/orders?${params.toString()}`);
             if (response.ok) {
                 const data = await response.json();
-                setOrders(data);
+                setOrders(Array.isArray(data) ? data : []);
             }
         } catch (error) {
             console.error('Failed to fetch orders:', error);

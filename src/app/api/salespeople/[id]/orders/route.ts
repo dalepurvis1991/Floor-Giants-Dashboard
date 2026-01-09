@@ -5,16 +5,17 @@ import { getSalespersonForOrder } from '@/lib/odoo/processor';
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const session = await getSession();
         if (!session || !session.password) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
         const credentials = { uid: session.userId, password: session.password };
-        const salespersonId = parseInt(params.id);
+        const salespersonId = parseInt(id);
 
         const searchParams = request.nextUrl.searchParams;
         const dateFrom = searchParams.get('dateFrom');
@@ -61,8 +62,11 @@ export async function GET(
         const filteredOrders = posOrders.filter(order => {
             const lines = posLinesByOrder.get(order.id) || [];
             const sp = getSalespersonForOrder(order, lines, saleOrderMap);
-            return sp.id === salespersonId;
+            const isMatch = sp.id === salespersonId;
+            return isMatch;
         });
+
+        console.log(`[Salesperson Orders API] Found ${filteredOrders.length} orders for ${salespersonId}`);
 
         return NextResponse.json(filteredOrders);
     } catch (error) {

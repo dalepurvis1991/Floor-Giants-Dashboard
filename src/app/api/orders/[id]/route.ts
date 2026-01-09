@@ -9,16 +9,17 @@ import { getSession } from '@/lib/auth';
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const session = await getSession();
         if (!session || !session.password) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
         const credentials = { uid: session.userId, password: session.password };
-        const orderId = parseInt(params.id);
+        const orderId = parseInt(id);
 
         let [order, lines] = await Promise.all([
             getPosOrderById(orderId, credentials),
