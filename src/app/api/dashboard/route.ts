@@ -35,39 +35,43 @@ export async function GET(request: NextRequest) {
         const storeId = searchParams.get('storeId')
             ? parseInt(searchParams.get('storeId')!)
             : undefined;
+        const region = searchParams.get('region') as 'North' | 'South' | null;
 
-        // Fetch all required data in parallel with user credentials
-        const [posOrders, categories] = await Promise.all([
-            getPosOrders(dateFrom, dateTo, storeId, queryUserId, credentials),
+        // Fetch POS orders first
+        const posOrders = await getPosOrders(dateFrom, dateTo, storeId, queryUserId, credentials);
+        const posOrderIds = posOrders.map(o => o.id);
+
+        // Fetch other data in parallel
+        const [posLines, categories, refunds] = await Promise.all([
+            getPosOrderLines(posOrderIds, credentials),
             getProductCategories(credentials),
+            getRefunds(dateFrom, dateTo, credentials)
         ]);
-
-        // Fetch order lines
-        const posOrderIds = posOrders.map((o) => o.id);
-        const posLines = await getPosOrderLines(posOrderIds, credentials);
 
         // Fetch Linked Sale Orders for Salesperson Attribution
         const linkedSoIds = new Set<number>();
         posLines.forEach((l) => {
-            if (l.sale_order_origin_id) linkedSoIds.add(l.sale_order_origin_id[0]);
+            if (l.sale_order_origin_id && Array.isArray(l.sale_order_origin_id)) {
+                linkedSoIds.add(l.sale_order_origin_id[0]);
+            }
         });
         const linkedSaleOrders = await getSaleOrdersByIds(Array.from(linkedSoIds), credentials);
 
-        // Get unique product IDs to fetch categories
+        // Fetch products for categories
         const productIds = new Set<number>();
         posLines.forEach((l) => l.product_id && productIds.add(l.product_id[0]));
-
         const products = await getProducts(Array.from(productIds), credentials);
 
         // Process and return metrics
         const metrics = processDashboardData(
-            linkedSaleOrders, // saleOrders (Used for salesperson lookup)
-            [], // saleLines
+            linkedSaleOrders,
+            [], // saleLines (not used currently)
             posOrders,
             posLines,
             categories,
             products,
-            []  // refundOrders
+            [], // refundOrders (handled via refunds list internally if needed, but processor expects list)
+            region || undefined
         );
 
         return NextResponse.json(metrics);

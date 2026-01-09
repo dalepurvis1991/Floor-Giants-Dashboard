@@ -93,6 +93,8 @@ const REGION_MAP: Record<string, 'North' | 'South'> = {
     'swansea': 'South',
     'hedgend': 'South',
     'hedge end': 'South',
+    'cd1': 'South',
+    'cd2': 'South',
 };
 
 function getStoreRegion(storeName: string): 'North' | 'South' | 'Other' {
@@ -134,7 +136,8 @@ export function processDashboardData(
     posLines: PosOrderLine[],
     categories: ProductCategory[],
     products: Product[],
-    refundOrders: SaleOrder[] // Ignored
+    refundOrders: SaleOrder[], // Ignored
+    filterRegion?: 'North' | 'South'
 ): DashboardMetrics {
     const categoryMap = new Map<number, string>();
     categories.forEach((cat) => categoryMap.set(cat.id, cat.complete_name || cat.name));
@@ -184,6 +187,14 @@ export function processDashboardData(
 
     // Process POS orders ONLY
     posOrders.forEach((order) => {
+        const configName = Array.isArray(order.config_id) ? order.config_id[1] : 'Unknown POS';
+        const storeRegion = getStoreRegion(configName);
+
+        // Apply region filter if specified
+        if (filterRegion && storeRegion !== filterRegion) {
+            return;
+        }
+
         const orderLines = posLinesByOrder.get(order.id) || [];
 
         // Check if it's a refund
@@ -220,9 +231,7 @@ export function processDashboardData(
 
         // Salesperson Processing
         const { id: userId, name: userName } = getSalespersonForOrder(order, orderLines, saleOrderMap);
-
         const configId = Array.isArray(order.config_id) ? order.config_id[0] : 0;
-        const configName = Array.isArray(order.config_id) ? order.config_id[1] : 'Unknown POS';
 
         if (!salespersonMap.has(userId)) {
             salespersonMap.set(userId, {
@@ -281,6 +290,15 @@ export function processDashboardData(
 
         const productId = Array.isArray(line.product_id) ? line.product_id[0] : 0;
         const categoryId = productCategoryMap.get(productId) || 0;
+
+        // Skip category stats if the order this line belongs to was filtered out
+        const orderId = Array.isArray(line.order_id) ? line.order_id[0] : 0;
+        const parentOrder = posOrders.find(o => o.id === orderId);
+        if (parentOrder && filterRegion) {
+            const configName = Array.isArray(parentOrder.config_id) ? parentOrder.config_id[1] : '';
+            if (getStoreRegion(configName) !== filterRegion) return;
+        }
+
         const categoryName = categoryMap.get(categoryId) || 'Other';
         const mappedCategory = mapToCategory(categoryName);
 
@@ -327,6 +345,9 @@ export function processDashboardData(
     // Low margin alerts (POS only)
     const lowMarginAlerts: { orderId: number; orderName: string; marginPercent: number }[] = [];
     posOrders.forEach((order) => {
+        const configName = Array.isArray(order.config_id) ? order.config_id[1] : '';
+        if (filterRegion && getStoreRegion(configName) !== filterRegion) return;
+
         const orderMargin = order.margin || 0;
         // Use calculated Ex VAT sales if possible, but for individual component logic:
         // We need order sales ex vat. We calculated it inside loop. 

@@ -72,6 +72,7 @@ export default function DashboardPage() {
   });
   const [stores, setStores] = useState<{ id: number; name: string }[]>([]);
   const [selectedStore, setSelectedStore] = useState<string>('');
+  const [selectedRegion, setSelectedRegion] = useState<string>('');
 
   // Drilldown Modal State
   const [selectedSalesperson, setSelectedSalesperson] = useState<{ id: number; name: string } | null>(null);
@@ -126,6 +127,7 @@ export default function DashboardPage() {
         dateTo: filters.dateTo,
       });
       if (selectedStore) params.append('storeId', selectedStore);
+      if (selectedRegion) params.append('region', selectedRegion);
       const response = await fetch(`/api/dashboard?${params}`);
       if (response.status === 401) { // Added authentication check
         router.push('/login');
@@ -141,7 +143,7 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [filters, selectedStore, router]); // Added selectedStore to dependencies
+  }, [filters, selectedStore, selectedRegion, router]);
 
   useEffect(() => {
     fetchUser();
@@ -169,14 +171,29 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <select
-          className={styles.storeSelect}
-          value={selectedStore}
-          onChange={(e) => setSelectedStore(e.target.value)}
-        >
-          <option value="">All Stores</option>
-          {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
+        <div className={styles.filterControls}>
+          <select
+            className={styles.storeSelect}
+            value={selectedRegion}
+            onChange={(e) => {
+              setSelectedRegion(e.target.value);
+              setSelectedStore(''); // Clear store selection when region changes
+            }}
+          >
+            <option value="">All Regions</option>
+            <option value="North">North Region</option>
+            <option value="South">South Region</option>
+          </select>
+
+          <select
+            className={styles.storeSelect}
+            value={selectedStore}
+            onChange={(e) => setSelectedStore(e.target.value)}
+          >
+            <option value="">All Stores</option>
+            {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        </div>
 
         {user && ( // Added user info and logout button
           <div className={styles.userInfo}>
@@ -242,21 +259,6 @@ export default function DashboardPage() {
             />
           </section>
 
-          <section className={styles.regionalSection}>
-            <h2 className={styles.sectionTitle}>Regional Performance (Ex VAT)</h2>
-            <div className={styles.statsGrid}>
-              {metrics.regionalStats.map(reg => (
-                <StatCard
-                  key={reg.name}
-                  title={`${reg.name} Region`}
-                  value={formatCurrency(reg.totalSales)}
-                  subValue={`${reg.marginPercent.toFixed(1)}% margin`}
-                  variant={reg.marginPercent < 40 ? 'danger' : 'success'}
-                />
-              ))}
-            </div>
-          </section>
-
           <section className={styles.mainContent}>
             <div className={styles.chartsSection}>
               <CategoryChart data={metrics.categoryBreakdown} />
@@ -275,51 +277,20 @@ export default function DashboardPage() {
 
           <section className={styles.storeSection}>
             <h2 className={styles.sectionTitle}>Store Performance (Ex VAT)</h2>
-
-            {['North', 'South'].map(region => (
-              <div key={region} className={styles.regionGroup}>
-                <h3 className={styles.regionTitle}>{region} stores</h3>
-                <div className={styles.storeGrid}>
-                  {metrics.storeStats
-                    .filter(s => s.region === region)
-                    .map((store) => (
-                      <StoreCard
-                        key={store.id}
-                        name={store.name}
-                        totalSales={store.totalSales}
-                        marginPercent={store.marginPercent}
-                        discounts={store.discounts}
-                        refundCount={store.refundCount}
-                        refundValue={store.refundValue}
-                        alertLevel={store.alertLevel}
-                      />
-                    ))}
-                </div>
-              </div>
-            ))}
-
-            {/* Show 'Other' if any */}
-            {metrics.storeStats.some(s => s.region === 'Other') && (
-              <div className={styles.regionGroup}>
-                <h3 className={styles.regionTitle}>Other stores</h3>
-                <div className={styles.storeGrid}>
-                  {metrics.storeStats
-                    .filter(s => s.region === 'Other')
-                    .map((store) => (
-                      <StoreCard
-                        key={store.id}
-                        name={store.name}
-                        totalSales={store.totalSales}
-                        marginPercent={store.marginPercent}
-                        discounts={store.discounts}
-                        refundCount={store.refundCount}
-                        refundValue={store.refundValue}
-                        alertLevel={store.alertLevel}
-                      />
-                    ))}
-                </div>
-              </div>
-            )}
+            <div className={styles.storeGrid}>
+              {metrics.storeStats.map((store) => (
+                <StoreCard
+                  key={store.id}
+                  name={store.name}
+                  totalSales={store.totalSales}
+                  marginPercent={store.marginPercent}
+                  discounts={store.discounts}
+                  refundCount={store.refundCount}
+                  refundValue={store.refundValue}
+                  alertLevel={store.alertLevel}
+                />
+              ))}
+            </div>
           </section>
 
           <section className={styles.leaderboardSection}>
