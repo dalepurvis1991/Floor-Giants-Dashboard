@@ -36,6 +36,7 @@ export interface PosOrder {
     config_id: [number, string] | false;
     partner_id: [number, string] | false;
     company_id: [number, string] | false;
+    sale_order_origin_id?: [number, string] | false;
 }
 
 export interface PosOrderLine {
@@ -261,6 +262,7 @@ export async function getPosOrderById(
             'config_id',
             'partner_id',
             'company_id',
+            'sale_order_origin_id',
         ],
         { limit: 1 },
         credentials

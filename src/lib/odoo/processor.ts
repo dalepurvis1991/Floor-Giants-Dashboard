@@ -70,6 +70,30 @@ function mapToCategory(categoryName: string): string {
     return 'Other';
 }
 
+export function getSalespersonForOrder(
+    order: PosOrder,
+    orderLines: PosOrderLine[],
+    saleOrderMap: Map<number, SaleOrder>
+): { id: number; name: string } {
+    let userId = Array.isArray(order.user_id) ? order.user_id[0] : 0;
+    let userName = Array.isArray(order.user_id) ? order.user_id[1] : 'Employee';
+
+    // Check for linked Sale Order to override salesperson
+    for (const line of orderLines) {
+        if (line.sale_order_origin_id && saleOrderMap.has(line.sale_order_origin_id[0])) {
+            const so = saleOrderMap.get(line.sale_order_origin_id[0])!;
+            if (so.user_id) {
+                userId = Array.isArray(so.user_id) ? so.user_id[0] : userId;
+                userName = Array.isArray(so.user_id) ? so.user_id[1] : userName;
+                break; // Use the first found original salesperson
+            }
+        }
+    }
+
+    if (!userName || userName === 'Unknown') userName = 'Employee';
+    return { id: userId, name: userName };
+}
+
 export function processDashboardData(
     saleOrders: SaleOrder[], // Kept for signature compatibility but ignored
     saleLines: SaleOrderLine[], // Ignored
@@ -148,23 +172,7 @@ export function processDashboardData(
         totalDiscounts += orderDiscounts;
 
         // Salesperson Processing
-        let userId = Array.isArray(order.user_id) ? order.user_id[0] : 0;
-        let userName = Array.isArray(order.user_id) ? order.user_id[1] : 'Employee';
-
-        // Check for linked Sale Order to override salesperson
-        for (const line of orderLines) {
-            if (line.sale_order_origin_id && saleOrderMap.has(line.sale_order_origin_id[0])) {
-                const so = saleOrderMap.get(line.sale_order_origin_id[0])!;
-                if (so.user_id) {
-                    userId = Array.isArray(so.user_id) ? so.user_id[0] : userId;
-                    userName = Array.isArray(so.user_id) ? so.user_id[1] : userName;
-                    break; // Use the first found original salesperson
-                }
-            }
-        }
-
-        // Handle unassigned as 'Employee'
-        if (!userName || userName === 'Unknown') userName = 'Employee';
+        const { id: userId, name: userName } = getSalespersonForOrder(order, orderLines, saleOrderMap);
 
         const configId = Array.isArray(order.config_id) ? order.config_id[0] : 0;
         const configName = Array.isArray(order.config_id) ? order.config_id[1] : 'Unknown POS';
