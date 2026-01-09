@@ -226,7 +226,7 @@ export async function getPosOrders(
         'config_id',
         'partner_id',
         'company_id',
-    ], {}, credentials);
+    ], { limit: 10000 }, credentials);
 
     return orders.filter(order => {
         const companyId = Array.isArray(order.company_id) ? order.company_id[0] : 0;
@@ -262,7 +262,6 @@ export async function getPosOrderById(
             'config_id',
             'partner_id',
             'company_id',
-            'sale_order_origin_id',
         ],
         { limit: 1 },
         credentials
@@ -290,7 +289,7 @@ export async function getPosOrderLines(
             'margin',
             'sale_order_origin_id',
         ],
-        {},
+        { limit: 10000 },
         credentials
     );
 }

@@ -34,8 +34,9 @@ export async function GET(
 
         // FALLBACK: If POS order has no lines, check if it's linked to a Sales Order
         // and fetch lines from there. This happens when a Sales Order is settled in POS.
-        if (lines.length === 0 && order.sale_order_origin_id) {
-            const soId = order.sale_order_origin_id[0];
+        const soOrigin = (order as any).sale_order_origin_id;
+        if (lines.length === 0 && soOrigin && Array.isArray(soOrigin)) {
+            const soId = soOrigin[0];
             const [so, soLines] = await Promise.all([
                 getSaleOrdersByIds([soId], credentials),
                 getSaleOrderLines([soId], credentials),
