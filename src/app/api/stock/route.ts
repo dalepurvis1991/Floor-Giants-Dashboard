@@ -21,14 +21,23 @@ export async function GET(request: NextRequest) {
         const credentials = { uid: session.userId, password: session.password };
 
         const searchParams = request.nextUrl.searchParams;
-        const dateTo = new Date().toISOString().split('T')[0];
-        const dateFromDate = new Date();
-        dateFromDate.setDate(dateFromDate.getDate() - 30); // Last 30 days
-        const dateFrom = dateFromDate.toISOString().split('T')[0];
+
+        // Default to last 30 days if not provided
+        const dateTo = searchParams.get('dateTo') || new Date().toISOString().split('T')[0];
+        const defaultDateFrom = new Date();
+        defaultDateFrom.setDate(defaultDateFrom.getDate() - 30);
+        const dateFrom = searchParams.get('dateFrom') || defaultDateFrom.toISOString().split('T')[0];
 
         const storeId = searchParams.get('storeId')
             ? parseInt(searchParams.get('storeId')!)
             : undefined;
+        const region = searchParams.get('region') || undefined;
+
+        // Calculate days in period
+        const start = new Date(dateFrom);
+        const end = new Date(dateTo);
+        const diffTime = Math.abs(end.getTime() - start.getTime());
+        const daysInPeriod = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
 
         // 1. Fetch Categories
         console.log('[Stock API] Fetching categories...');
@@ -37,8 +46,8 @@ export async function GET(request: NextRequest) {
             return [];
         });
 
-        // 2. Fetch POS Orders
-        console.log('[Stock API] Fetching POS orders...');
+        // 2. Fetch POS Orders (respecting storeId and date range)
+        console.log(`[Stock API] Fetching POS orders from ${dateFrom} to ${dateTo}...`);
         const posOrders = await getPosOrders(dateFrom, dateTo, storeId, undefined, credentials).catch(e => {
             console.error('[Stock API] Error fetching POS orders:', e);
             return [];
@@ -101,9 +110,11 @@ export async function GET(request: NextRequest) {
         try {
             const stockMetrics = processStockData(
                 products,
+                posOrders, // Now passed correctly
                 posLines,
                 categories,
-                30 // daysInPeriod
+                daysInPeriod,
+                region
             );
             console.log('[Stock API] Success');
             return NextResponse.json(stockMetrics);

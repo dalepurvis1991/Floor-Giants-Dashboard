@@ -7,11 +7,11 @@ import {
     Package,
     TrendingUp,
     AlertTriangle,
-    DollarSign,
-    ArrowLeft,
-    PieChart
+    PieChart,
+    LayoutDashboard
 } from 'lucide-react';
 import StatCard from '@/components/dashboard/StatCard';
+import DashboardFilters from '@/components/dashboard/DashboardFilters';
 import styles from './page.module.css';
 
 interface StockMetrics {
@@ -27,13 +27,38 @@ export default function StockDashboard() {
     const [metrics, setMetrics] = useState<StockMetrics | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [stores, setStores] = useState<any[]>([]);
+    const [selectedStore, setSelectedStore] = useState<string>('');
+    const [selectedRegion, setSelectedRegion] = useState<string>('');
+    const [filters, setFilters] = useState({
+        dateFrom: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0],
+        dateTo: new Date().toISOString().split('T')[0]
+    });
+
     const router = useRouter();
+
+    const fetchStores = useCallback(async () => {
+        try {
+            const response = await fetch('/api/stores');
+            const data = await response.json();
+            setStores(data);
+        } catch (err) {
+            console.error('Failed to fetch stores:', err);
+        }
+    }, []);
 
     const fetchStockData = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
-            const response = await fetch('/api/stock');
+            const params = new URLSearchParams({
+                dateFrom: filters.dateFrom,
+                dateTo: filters.dateTo,
+            });
+            if (selectedStore) params.append('storeId', selectedStore);
+            if (selectedRegion) params.append('region', selectedRegion);
+
+            const response = await fetch(`/api/stock?${params}`);
             if (response.status === 401) {
                 router.push('/login');
                 return;
@@ -46,23 +71,22 @@ export default function StockDashboard() {
         } finally {
             setLoading(false);
         }
-    }, [router]);
+    }, [router, filters, selectedStore, selectedRegion]);
+
+    useEffect(() => {
+        fetchStores();
+    }, [fetchStores]);
 
     useEffect(() => {
         fetchStockData();
     }, [fetchStockData]);
 
+    const handleFilterChange = (newFilters: { dateFrom: string; dateTo: string }) => {
+        setFilters(newFilters);
+    };
+
     const formatCurrency = (value: number) =>
         new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(value);
-
-    if (loading && !metrics) {
-        return (
-            <div className={styles.loading}>
-                <RefreshCw size={48} className={styles.spinning} />
-                <p>Loading inventory data...</p>
-            </div>
-        );
-    }
 
     return (
         <div className={styles.container}>
@@ -80,11 +104,53 @@ export default function StockDashboard() {
                     <button className={`${styles.navBtn} ${styles.active}`}>Stock</button>
                 </nav>
 
-                <button className={styles.navBtn} onClick={fetchStockData} disabled={loading} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div className={styles.filterControls}>
+                    <select
+                        className={styles.storeSelect}
+                        value={selectedRegion}
+                        onChange={(e) => {
+                            setSelectedRegion(e.target.value);
+                            setSelectedStore(''); // Clear store selection when region changes
+                        }}
+                    >
+                        <option value="">All Regions</option>
+                        <option value="North">North Region</option>
+                        <option value="South">South Region</option>
+                    </select>
+
+                    <select
+                        className={styles.storeSelect}
+                        value={selectedStore}
+                        onChange={(e) => setSelectedStore(e.target.value)}
+                    >
+                        <option value="">All Stores</option>
+                        {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                </div>
+
+                <button className={styles.refreshBtn} onClick={fetchStockData} disabled={loading}>
                     <RefreshCw size={18} className={loading ? styles.spinning : ''} />
                     Refresh
                 </button>
             </header>
+
+            <section className={styles.filtersSection}>
+                <DashboardFilters onFilterChange={handleFilterChange} />
+            </section>
+
+            {loading && !metrics && (
+                <div className={styles.loading}>
+                    <RefreshCw size={48} className={styles.spinning} />
+                    <p>Loading inventory data...</p>
+                </div>
+            )}
+
+            {error && (
+                <div className={styles.error}>
+                    <p>Error loading stock data: {error}</p>
+                    <button onClick={fetchStockData} className={styles.retryBtn}>Try Again</button>
+                </div>
+            )}
 
             {metrics && (
                 <>
@@ -103,7 +169,7 @@ export default function StockDashboard() {
                         <StatCard
                             title="Slow Moving Items"
                             value={String(metrics.alerts.filter(a => a.status === 'slow_mover').length)}
-                            subValue="No sales in 30 days"
+                            subValue="No sales in selected period"
                             variant="warning"
                         />
                     </section>
@@ -113,7 +179,7 @@ export default function StockDashboard() {
                             <section className={styles.card}>
                                 <h3 className={styles.cardTitle}>
                                     <TrendingUp size={20} style={{ color: '#4ade80' }} />
-                                    Top 10 Best Sellers (by Volume)
+                                    Top 10 Best Sellers
                                 </h3>
                                 <div className={styles.tableContainer}>
                                     <table className={styles.table}>
@@ -142,6 +208,9 @@ export default function StockDashboard() {
                                                     </td>
                                                 </tr>
                                             ))}
+                                            {metrics.topByQuantity.length === 0 && (
+                                                <tr><td colSpan={6} style={{ textAlign: 'center', opacity: 0.5, padding: '2rem' }}>No sales data for this period</td></tr>
+                                            )}
                                         </tbody>
                                     </table>
                                 </div>
@@ -156,7 +225,7 @@ export default function StockDashboard() {
                                 </h3>
                                 <div className={styles.alertList}>
                                     {metrics.alerts.map(alert => (
-                                        <div key={alert.id} className={`${styles.alertItem} ${styles[alert.status === 'out_of_stock' ? 'out' : alert.status === 'low' ? 'low' : 'slow']}`}>
+                                        <div key={`${alert.id}-${alert.status}`} className={`${styles.alertItem} ${styles[alert.status === 'out_of_stock' ? 'out' : alert.status === 'low' ? 'low' : 'slow']}`}>
                                             <div className={styles.alertContent}>
                                                 <span className={styles.alertName}>{alert.name}</span>
                                                 <span className={styles.alertMeta}>

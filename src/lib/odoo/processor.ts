@@ -419,23 +419,39 @@ export function processDashboardData(
 }
 export function processStockData(
     products: Product[],
+    posOrders: PosOrder[],
     posLines: PosOrderLine[],
     categories: ProductCategory[],
-    daysInPeriod: number = 30
+    daysInPeriod: number = 30,
+    filterRegion?: string
 ): StockMetrics {
     const productSalesMap = new Map<number, { qty: number; revenue: number; margin: number }>();
     const categoryValuationMap = new Map<string, { value: number; count: number }>();
 
-    // 1. Process Sales Data
-    posLines.forEach(line => {
-        const productId = Array.isArray(line.product_id) ? line.product_id[0] : 0;
-        if (!productId) return;
+    // Map pos lines by order ID
+    const posLinesByOrder = new Map<number, PosOrderLine[]>();
+    posLines.forEach((line) => {
+        const orderId = Array.isArray(line.order_id) ? line.order_id[0] : 0;
+        if (!posLinesByOrder.has(orderId)) posLinesByOrder.set(orderId, []);
+        posLinesByOrder.get(orderId)!.push(line);
+    });
 
-        const current = productSalesMap.get(productId) || { qty: 0, revenue: 0, margin: 0 };
-        current.qty += (line.qty || 0);
-        current.revenue += (line.price_subtotal || 0);
-        current.margin += (line.margin || 0);
-        productSalesMap.set(productId, current);
+    // 1. Process Sales Data (respecting filters)
+    posOrders.forEach(order => {
+        const configName = Array.isArray(order.config_id) ? order.config_id[1] : '';
+        if (filterRegion && getStoreRegion(configName) !== filterRegion) return;
+
+        const orderLines = posLinesByOrder.get(order.id) || [];
+        orderLines.forEach(line => {
+            const productId = Array.isArray(line.product_id) ? line.product_id[0] : 0;
+            if (!productId) return;
+
+            const current = productSalesMap.get(productId) || { qty: 0, revenue: 0, margin: 0 };
+            current.qty += (line.qty || 0);
+            current.revenue += (line.price_subtotal || 0);
+            current.margin += (line.margin || 0);
+            productSalesMap.set(productId, current);
+        });
     });
 
     const categoryMap = new Map<number, string>();
