@@ -32,11 +32,17 @@ export async function GET(request: NextRequest) {
 
         // 1. Fetch Categories
         console.log('[Stock API] Fetching categories...');
-        const categories = await getProductCategories(credentials);
+        const categories = await getProductCategories(credentials).catch(e => {
+            console.error('[Stock API] Error fetching categories:', e);
+            return [];
+        });
 
         // 2. Fetch POS Orders
         console.log('[Stock API] Fetching POS orders...');
-        const posOrders = await getPosOrders(dateFrom, dateTo, storeId, undefined, credentials);
+        const posOrders = await getPosOrders(dateFrom, dateTo, storeId, undefined, credentials).catch(e => {
+            console.error('[Stock API] Error fetching POS orders:', e);
+            return [];
+        });
         const posOrderIds = posOrders.map((o) => o.id);
 
         let posLines: any[] = [];
@@ -44,48 +50,70 @@ export async function GET(request: NextRequest) {
 
         // 3. Fetch POS Order Lines
         if (posOrderIds.length > 0) {
-            console.log(`[Stock API] Fetching lines for ${posOrderIds.length} orders...`);
-            posLines = await getPosOrderLines(posOrderIds, credentials);
+            try {
+                console.log(`[Stock API] Fetching lines for ${posOrderIds.length} orders...`);
+                posLines = await getPosOrderLines(posOrderIds, credentials);
 
-            const productIdsSet = new Set<number>();
-            posLines.forEach(l => {
-                if (l.product_id && Array.isArray(l.product_id)) {
-                    productIdsSet.add(l.product_id[0]);
-                }
-            });
-            soldProductIds = Array.from(productIdsSet);
+                const productIdsSet = new Set<number>();
+                posLines.forEach(l => {
+                    if (l.product_id && Array.isArray(l.product_id)) {
+                        productIdsSet.add(l.product_id[0]);
+                    }
+                });
+                soldProductIds = Array.from(productIdsSet);
+                console.log(`[Stock API] Identified ${soldProductIds.length} unique sold products`);
+            } catch (e) {
+                console.error('[Stock API] Error fetching POS order lines:', e);
+            }
         }
-        console.log(`[Stock API] Identified ${soldProductIds.length} unique sold products`);
 
         // 4. Fetch Product Details (Surgical + Broad Sample)
         console.log('[Stock API] Fetching product stock levels...');
-        // We fetch sold products first, then a broad sample of general stock to find low items
-        const [activeProducts, broadProducts] = await Promise.all([
-            soldProductIds.length > 0 ? getProducts(soldProductIds, credentials) : Promise.resolve([]),
-            getStockReport(credentials) // Fetches up to 2000 saleable products
-        ]);
+        let activeProducts: any[] = [];
+        let broadProducts: any[] = [];
+
+        try {
+            if (soldProductIds.length > 0) {
+                console.log(`[Stock API] Fetching details for ${soldProductIds.length} active products...`);
+                activeProducts = await getProducts(soldProductIds, credentials);
+            }
+        } catch (e) {
+            console.error('[Stock API] Error fetching active products:', e);
+        }
+
+        try {
+            console.log('[Stock API] Fetching broad stock report sample...');
+            broadProducts = await getStockReport(credentials);
+        } catch (e) {
+            console.error('[Stock API] Error fetching broad stock report:', e);
+        }
 
         // Merge and deduplicate
         const productMap = new Map<number, any>();
-        activeProducts.forEach(p => productMap.set(p.id, p));
-        broadProducts.forEach(p => productMap.set(p.id, p));
+        activeProducts.forEach(p => p && p.id && productMap.set(p.id, p));
+        broadProducts.forEach(p => p && p.id && productMap.set(p.id, p));
         const products = Array.from(productMap.values());
 
-        console.log(`[Stock API] Total products for processing: ${products.length}`);
+        console.log(`[Stock API] Total unique products for processing: ${products.length}`);
 
         // 5. Process Data
         console.log('[Stock API] Processing final metrics...');
-        const stockMetrics = processStockData(
-            products,
-            posLines,
-            categories,
-            30 // daysInPeriod
-        );
-        console.log('[Stock API] Success');
+        try {
+            const stockMetrics = processStockData(
+                products,
+                posLines,
+                categories,
+                30 // daysInPeriod
+            );
+            console.log('[Stock API] Success');
+            return NextResponse.json(stockMetrics);
+        } catch (processingError) {
+            console.error('[Stock API] Processing error:', processingError);
+            throw processingError;
+        }
 
-        return NextResponse.json(stockMetrics);
     } catch (error) {
-        console.error('[Stock API] ERROR:', error);
+        console.error('[Stock API] Top-level ERROR:', error);
         return NextResponse.json(
             { error: 'Failed to fetch stock data', details: String(error) },
             { status: 500 }

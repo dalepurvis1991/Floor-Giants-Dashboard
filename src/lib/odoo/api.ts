@@ -201,32 +201,54 @@ export async function getProducts(
     credentials?: { uid: number; password: string }
 ): Promise<Product[]> {
     if (productIds.length === 0) return [];
-    return searchRead<Product>('product.product', [['id', 'in', productIds]], [
-        'id',
-        'name',
-        'categ_id',
-        'qty_available',
-        'standard_price',
-        'list_price',
-        'default_code',
-    ], { limit: 10000 }, credentials);
+
+    // Batch processing to avoid Large Domain issues and timeouts on computed fields
+    const batchSize = 200;
+    const results: Product[] = [];
+
+    for (let i = 0; i < productIds.length; i += batchSize) {
+        const batchIds = productIds.slice(i, i + batchSize);
+        const batch = await searchRead<Product>('product.product', [['id', 'in', batchIds]], [
+            'id',
+            'name',
+            'categ_id',
+            'qty_available',
+            'standard_price',
+            'list_price',
+            'default_code',
+        ], { limit: batchSize }, credentials);
+        results.push(...batch);
+    }
+
+    return results;
 }
 
 export async function getStockReport(
     credentials?: { uid: number; password: string }
 ): Promise<Product[]> {
     // This is a broad report, can be slow for compueted fields.
-    // Removed order by qty_available as it's often not searchable/sortable in Odoo
-    return searchRead<Product>('product.product', [['sale_ok', '=', true]], [
-        'id',
-        'name',
-        'categ_id',
-        'qty_available',
-        'virtual_available',
-        'standard_price',
-        'list_price',
-        'default_code',
-    ], { limit: 2000 }, credentials);
+    // We batch it to avoid timeouts.
+    const batchSize = 200;
+    const totalLimit = 2000;
+    const results: Product[] = [];
+
+    for (let i = 0; i < totalLimit; i += batchSize) {
+        const batch = await searchRead<Product>('product.product', [['sale_ok', '=', true]], [
+            'id',
+            'name',
+            'categ_id',
+            'qty_available',
+            'virtual_available',
+            'standard_price',
+            'list_price',
+            'default_code',
+        ], { limit: batchSize, offset: i }, credentials);
+
+        results.push(...batch);
+        if (batch.length < batchSize) break; // End of records
+    }
+
+    return results;
 }
 
 export async function getLowStockReport(
