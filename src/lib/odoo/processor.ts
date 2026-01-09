@@ -62,6 +62,41 @@ export interface DashboardMetrics {
     lowMarginAlerts: { orderId: number; orderName: string; marginPercent: number }[];
 }
 
+export interface BestSeller {
+    id: number;
+    name: string;
+    sku: string;
+    quantity: number;
+    revenue: number;
+    margin: number;
+    marginPercent: number;
+    stockLevel: number;
+}
+
+export interface StockValue {
+    category: string;
+    value: number;
+    itemCount: number;
+}
+
+export interface StockAlert {
+    id: number;
+    name: string;
+    sku: string;
+    status: 'low' | 'out_of_stock' | 'slow_mover';
+    currentStock: number;
+    avgWeeklySales: number;
+}
+
+export interface StockMetrics {
+    topByQuantity: BestSeller[];
+    topByRevenue: BestSeller[];
+    topByMargin: BestSeller[];
+    valuationByCategory: StockValue[];
+    alerts: StockAlert[];
+    totalValuation: number;
+}
+
 const CATEGORY_MAP: Record<string, string> = {
     spc: 'SPC',
     lvt: 'LVT / LVC',
@@ -380,5 +415,114 @@ export function processDashboardData(
         storeStats: Array.from(storeMap.values()).sort((a, b) => b.totalSales - a.totalSales),
         regionalStats: Array.from(regionalMap.values()),
         lowMarginAlerts: lowMarginAlerts.sort((a, b) => a.marginPercent - b.marginPercent),
+    };
+}
+export function processStockData(
+    products: Product[],
+    posLines: PosOrderLine[],
+    categories: ProductCategory[],
+    daysInPeriod: number = 30
+): StockMetrics {
+    const productSalesMap = new Map<number, { qty: number; revenue: number; margin: number }>();
+    const categoryValuationMap = new Map<string, { value: number; count: number }>();
+
+    // 1. Process Sales Data
+    posLines.forEach(line => {
+        const productId = Array.isArray(line.product_id) ? line.product_id[0] : 0;
+        if (!productId) return;
+
+        const current = productSalesMap.get(productId) || { qty: 0, revenue: 0, margin: 0 };
+        current.qty += line.qty;
+        current.revenue += line.price_subtotal;
+        current.margin += line.margin;
+        productSalesMap.set(productId, current);
+    });
+
+    const categoryMap = new Map<number, string>();
+    categories.forEach(c => categoryMap.set(c.id, c.complete_name || c.name));
+
+    // 2. Process Products for Valuation and Alerts
+    const alerts: StockAlert[] = [];
+    let totalValuation = 0;
+
+    const processedProducts = products.map(p => {
+        const sales = productSalesMap.get(p.id) || { qty: 0, revenue: 0, margin: 0 };
+        const categoryName = p.categ_id ? (categoryMap.get(p.categ_id[0]) || 'Other') : 'Other';
+        const mappedCategory = mapToCategory(categoryName);
+
+        const stock = p.qty_available || 0;
+        const cost = p.standard_price || 0;
+        const valuation = stock > 0 ? stock * cost : 0;
+        totalValuation += valuation;
+
+        // Group Valuation
+        const catVal = categoryValuationMap.get(mappedCategory) || { value: 0, count: 0 };
+        catVal.value += valuation;
+        catVal.count += 1;
+        categoryValuationMap.set(mappedCategory, catVal);
+
+        const avgWeeklySales = (sales.qty / daysInPeriod) * 7;
+
+        // Check Alerts
+        if (stock <= 0) {
+            alerts.push({
+                id: p.id,
+                name: p.name,
+                sku: p.default_code || 'N/A',
+                status: 'out_of_stock',
+                currentStock: stock,
+                avgWeeklySales
+            });
+        } else if (stock < avgWeeklySales) {
+            alerts.push({
+                id: p.id,
+                name: p.name,
+                sku: p.default_code || 'N/A',
+                status: 'low',
+                currentStock: stock,
+                avgWeeklySales
+            });
+        } else if (stock > 0 && sales.qty === 0 && daysInPeriod >= 14) {
+            // Slow mover if stock > 0 but 0 sales in at least 2 weeks
+            alerts.push({
+                id: p.id,
+                name: p.name,
+                sku: p.default_code || 'N/A',
+                status: 'slow_mover',
+                currentStock: stock,
+                avgWeeklySales: 0
+            });
+        }
+
+        return {
+            id: p.id,
+            name: p.name,
+            sku: p.default_code || 'N/A',
+            quantity: sales.qty,
+            revenue: sales.revenue,
+            margin: sales.margin,
+            marginPercent: sales.revenue > 0 ? (sales.margin / sales.revenue) * 100 : 0,
+            stockLevel: stock
+        };
+    });
+
+    // 3. Sort for Top Lists
+    const topByQuantity = [...processedProducts].sort((a, b) => b.quantity - a.quantity).slice(0, 10);
+    const topByRevenue = [...processedProducts].sort((a, b) => b.revenue - a.revenue).slice(0, 10);
+    const topByMargin = [...processedProducts].sort((a, b) => b.margin - a.margin).slice(0, 10);
+
+    const valuationByCategory = Array.from(categoryValuationMap.entries()).map(([category, data]) => ({
+        category,
+        value: data.value,
+        itemCount: data.count
+    })).sort((a, b) => b.value - a.value);
+
+    return {
+        topByQuantity,
+        topByRevenue,
+        topByMargin,
+        valuationByCategory,
+        alerts: alerts.slice(0, 20), // Limit top 20 alerts
+        totalValuation
     };
 }

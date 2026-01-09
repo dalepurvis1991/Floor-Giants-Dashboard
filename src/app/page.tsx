@@ -171,6 +171,11 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        <nav className={styles.nav}>
+          <button className={`${styles.navBtn} ${styles.active}`} onClick={() => router.push('/')}>Sales</button>
+          <button className={styles.navBtn} onClick={() => router.push('/stock')}>Stock</button>
+        </nav>
+
         <div className={styles.filterControls}>
           <select
             className={styles.storeSelect}

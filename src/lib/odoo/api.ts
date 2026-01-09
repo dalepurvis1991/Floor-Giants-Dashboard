@@ -68,6 +68,11 @@ export interface Product {
     id: number;
     name: string;
     categ_id: [number, string] | false;
+    qty_available?: number;
+    virtual_available?: number;
+    standard_price?: number;
+    list_price?: number;
+    default_code?: string | false;
 }
 
 export interface AccountMoveLine {
@@ -190,7 +195,26 @@ export async function getProducts(
         'id',
         'name',
         'categ_id',
+        'qty_available',
+        'standard_price',
+        'list_price',
+        'default_code',
     ], { limit: 10000 }, credentials);
+}
+
+export async function getStockReport(
+    credentials?: { uid: number; password: string }
+): Promise<Product[]> {
+    return searchRead<Product>('product.product', [['sale_ok', '=', true]], [
+        'id',
+        'name',
+        'categ_id',
+        'qty_available',
+        'virtual_available',
+        'standard_price',
+        'list_price',
+        'default_code',
+    ], { limit: 10000, order: 'qty_available desc' }, credentials);
 }
 
 export async function getPosConfigs(
