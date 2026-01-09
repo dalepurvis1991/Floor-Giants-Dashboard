@@ -93,8 +93,19 @@
 }
 
 .moreAlerts {
-    color: #64748b;
-    font-size: 13px;
-    text-align: center;
-    margin-top: 8px;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    text-align: right;
+    margin-top: 0.5rem;
+    opacity: 0.7;
+}
+
+.alertItem.clickable {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.alertItem.clickable:hover {
+    background: rgba(239, 68, 68, 0.15);
+    transform: translateX(4px);
 }

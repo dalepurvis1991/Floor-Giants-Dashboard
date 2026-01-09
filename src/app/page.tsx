@@ -47,6 +47,15 @@ interface DashboardMetrics {
     refundCount: number;
     refundValue: number;
     alertLevel: 'ok' | 'warning' | 'critical';
+    region: 'North' | 'South' | 'Other';
+  }[];
+  regionalStats: {
+    name: string;
+    totalSales: number;
+    margin: number;
+    marginPercent: number;
+    discounts: number;
+    orderCount: number;
   }[];
   lowMarginAlerts: { orderId: number; orderName: string; marginPercent: number }[];
 }
@@ -233,6 +242,21 @@ export default function DashboardPage() {
             />
           </section>
 
+          <section className={styles.regionalSection}>
+            <h2 className={styles.sectionTitle}>Regional Performance (Ex VAT)</h2>
+            <div className={styles.statsGrid}>
+              {metrics.regionalStats.map(reg => (
+                <StatCard
+                  key={reg.name}
+                  title={`${reg.name} Region`}
+                  value={formatCurrency(reg.totalSales)}
+                  subValue={`${reg.marginPercent.toFixed(1)}% margin`}
+                  variant={reg.marginPercent < 40 ? 'danger' : 'success'}
+                />
+              ))}
+            </div>
+          </section>
+
           <section className={styles.mainContent}>
             <div className={styles.chartsSection}>
               <CategoryChart data={metrics.categoryBreakdown} />
@@ -244,26 +268,58 @@ export default function DashboardPage() {
                   name: s.name,
                   marginPercent: s.marginPercent,
                 }))}
+                onOrderClick={(id, name) => setSelectedOrder({ id, name })}
               />
             </div>
           </section>
 
           <section className={styles.storeSection}>
             <h2 className={styles.sectionTitle}>Store Performance (Ex VAT)</h2>
-            <div className={styles.storeGrid}>
-              {metrics.storeStats.map((store) => (
-                <StoreCard
-                  key={store.id}
-                  name={store.name}
-                  totalSales={store.totalSales}
-                  marginPercent={store.marginPercent}
-                  discounts={store.discounts}
-                  refundCount={store.refundCount}
-                  refundValue={store.refundValue}
-                  alertLevel={store.alertLevel}
-                />
-              ))}
-            </div>
+
+            {['North', 'South'].map(region => (
+              <div key={region} className={styles.regionGroup}>
+                <h3 className={styles.regionTitle}>{region} stores</h3>
+                <div className={styles.storeGrid}>
+                  {metrics.storeStats
+                    .filter(s => s.region === region)
+                    .map((store) => (
+                      <StoreCard
+                        key={store.id}
+                        name={store.name}
+                        totalSales={store.totalSales}
+                        marginPercent={store.marginPercent}
+                        discounts={store.discounts}
+                        refundCount={store.refundCount}
+                        refundValue={store.refundValue}
+                        alertLevel={store.alertLevel}
+                      />
+                    ))}
+                </div>
+              </div>
+            ))}
+
+            {/* Show 'Other' if any */}
+            {metrics.storeStats.some(s => s.region === 'Other') && (
+              <div className={styles.regionGroup}>
+                <h3 className={styles.regionTitle}>Other stores</h3>
+                <div className={styles.storeGrid}>
+                  {metrics.storeStats
+                    .filter(s => s.region === 'Other')
+                    .map((store) => (
+                      <StoreCard
+                        key={store.id}
+                        name={store.name}
+                        totalSales={store.totalSales}
+                        marginPercent={store.marginPercent}
+                        discounts={store.discounts}
+                        refundCount={store.refundCount}
+                        refundValue={store.refundValue}
+                        alertLevel={store.alertLevel}
+                      />
+                    ))}
+                </div>
+              </div>
+            )}
           </section>
 
           <section className={styles.leaderboardSection}>

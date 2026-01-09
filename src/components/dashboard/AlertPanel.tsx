@@ -13,9 +13,10 @@ interface Alert {
 interface AlertPanelProps {
     lowMarginAlerts: Alert[];
     criticalStores: { name: string; marginPercent: number }[];
+    onOrderClick?: (orderId: number, orderName: string) => void;
 }
 
-export default function AlertPanel({ lowMarginAlerts, criticalStores }: AlertPanelProps) {
+export default function AlertPanel({ lowMarginAlerts, criticalStores, onOrderClick }: AlertPanelProps) {
     const hasAlerts = lowMarginAlerts.length > 0 || criticalStores.length > 0;
 
     if (!hasAlerts) {
@@ -63,7 +64,11 @@ export default function AlertPanel({ lowMarginAlerts, criticalStores }: AlertPan
                     <h3 className={styles.sectionTitle}>Orders Below 30% Margin</h3>
                     <div className={styles.alertList}>
                         {lowMarginAlerts.slice(0, 10).map((alert) => (
-                            <div key={alert.orderId} className={styles.alertItem}>
+                            <div
+                                key={alert.orderId}
+                                className={`${styles.alertItem} ${onOrderClick ? styles.clickable : ''}`}
+                                onClick={() => onOrderClick?.(alert.orderId, alert.orderName)}
+                            >
                                 <span className={styles.alertName}>{alert.orderName}</span>
                                 <span className={styles.alertValue}>{alert.marginPercent.toFixed(1)}%</span>
                             </div>

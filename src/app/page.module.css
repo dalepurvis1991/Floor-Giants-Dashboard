@@ -52,14 +52,38 @@
 }
 
 .storeSelect:focus {
+  outline: none;
   border-color: #818cf8;
+  /* Keeping original color, as var(--accent) is not defined in the original doc */
   box-shadow: 0 0 0 2px rgba(129, 140, 248, 0.2);
+  /* Keeping original color, as rgba(99, 102, 241, 0.2) is not defined in the original doc */
 }
 
 .storeSelect option {
   background-color: #1e293b;
   color: #f8fafc;
   padding: 8px;
+}
+
+.regionalSection {
+  margin-bottom: 3rem;
+}
+
+.regionGroup {
+  margin-bottom: 2rem;
+}
+
+.regionTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #94a3b8;
+  /* Using a similar color from the document as var(--text-secondary) is not defined */
+  border-left: 4px solid #818cf8;
+  /* Using a similar color from the document as var(--accent) is not defined */
+  padding-left: 1rem;
+  margin-bottom: 1.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .refreshBtn {

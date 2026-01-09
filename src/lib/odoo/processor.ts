@@ -35,6 +35,16 @@ export interface StoreStats {
     refundCount: number;
     refundValue: number;
     alertLevel: 'ok' | 'warning' | 'critical';
+    region: 'North' | 'South' | 'Other';
+}
+
+export interface RegionalStats {
+    name: string;
+    totalSales: number;
+    margin: number;
+    marginPercent: number;
+    discounts: number;
+    orderCount: number;
 }
 
 export interface DashboardMetrics {
@@ -48,6 +58,7 @@ export interface DashboardMetrics {
     categoryBreakdown: CategorySales[];
     salespersonStats: SalespersonStats[];
     storeStats: StoreStats[];
+    regionalStats: RegionalStats[];
     lowMarginAlerts: { orderId: number; orderName: string; marginPercent: number }[];
 }
 
@@ -66,6 +77,28 @@ function mapToCategory(categoryName: string): string {
     const lower = categoryName.toLowerCase();
     for (const [key, value] of Object.entries(CATEGORY_MAP)) {
         if (lower.includes(key)) return value;
+    }
+    return 'Other';
+}
+
+const REGION_MAP: Record<string, 'North' | 'South'> = {
+    'basildon': 'North',
+    'hull': 'North',
+    'doncaster': 'North',
+    'derby': 'North',
+    'nottingham': 'North',
+    'cardiff 1': 'South',
+    'cardiff 2': 'South',
+    'merthyr': 'South',
+    'swansea': 'South',
+    'hedgend': 'South',
+    'hedge end': 'South',
+};
+
+function getStoreRegion(storeName: string): 'North' | 'South' | 'Other' {
+    const lower = storeName.toLowerCase();
+    for (const [key, region] of Object.entries(REGION_MAP)) {
+        if (lower.includes(key)) return region;
     }
     return 'Other';
 }
@@ -122,6 +155,20 @@ export function processDashboardData(
     const categoryStats = new Map<string, { sales: number; margin: number; discounts: number }>();
     const salespersonMap = new Map<number, SalespersonStats>();
     const storeMap = new Map<number, StoreStats>();
+    const regionalMap = new Map<'North' | 'South', RegionalStats>();
+
+    // Initialize regional stats
+    const regions: ('North' | 'South')[] = ['North', 'South'];
+    regions.forEach(r => {
+        regionalMap.set(r, {
+            name: r,
+            totalSales: 0,
+            margin: 0,
+            marginPercent: 0,
+            discounts: 0,
+            orderCount: 0
+        });
+    });
 
     // Map pos lines by order ID for easier aggregation
     const posLinesByOrder = new Map<number, PosOrderLine[]>();
@@ -205,6 +252,7 @@ export function processDashboardData(
                 refundCount: 0,
                 refundValue: 0,
                 alertLevel: 'ok',
+                region: getStoreRegion(configName),
             });
         }
         const store = storeMap.get(configId)!;
@@ -214,6 +262,15 @@ export function processDashboardData(
         if (isRefund) {
             store.refundCount += 1;
             store.refundValue += Math.abs(orderSalesExVat);
+        }
+
+        // Aggregate Region Stats
+        if (store.region !== 'Other') {
+            const region = regionalMap.get(store.region as 'North' | 'South')!;
+            region.totalSales += orderSalesExVat;
+            region.margin += orderMargin;
+            region.discounts += orderDiscounts;
+            region.orderCount += 1;
         }
     });
 
@@ -241,6 +298,10 @@ export function processDashboardData(
 
     salespersonMap.forEach((sp) => {
         sp.marginPercent = sp.totalSales > 0 ? (sp.margin / sp.totalSales) * 100 : 0;
+    });
+
+    regionalMap.forEach((reg) => {
+        reg.marginPercent = reg.totalSales > 0 ? (reg.margin / reg.totalSales) * 100 : 0;
     });
 
     storeMap.forEach((store) => {
@@ -296,6 +357,7 @@ export function processDashboardData(
         categoryBreakdown: categoryBreakdown.sort((a, b) => b.sales - a.sales),
         salespersonStats: Array.from(salespersonMap.values()).sort((a, b) => b.totalSales - a.totalSales),
         storeStats: Array.from(storeMap.values()).sort((a, b) => b.totalSales - a.totalSales),
+        regionalStats: Array.from(regionalMap.values()),
         lowMarginAlerts: lowMarginAlerts.sort((a, b) => a.marginPercent - b.marginPercent),
     };
 }
