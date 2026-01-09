@@ -215,6 +215,8 @@ export async function getProducts(
 export async function getStockReport(
     credentials?: { uid: number; password: string }
 ): Promise<Product[]> {
+    // This is a broad report, can be slow for compueted fields.
+    // Removed order by qty_available as it's often not searchable/sortable in Odoo
     return searchRead<Product>('product.product', [['sale_ok', '=', true]], [
         'id',
         'name',
@@ -224,7 +226,25 @@ export async function getStockReport(
         'standard_price',
         'list_price',
         'default_code',
-    ], { limit: 10000, order: 'qty_available desc' }, credentials);
+    ], { limit: 2000 }, credentials);
+}
+
+export async function getLowStockReport(
+    credentials?: { uid: number; password: string }
+): Promise<Product[]> {
+    // Removed qty_available filter as it's often not searchable in Odoo domain
+    // We will filter for low stock in the processor instead
+    return searchRead<Product>('product.product', [
+        ['sale_ok', '=', true]
+    ], [
+        'id',
+        'name',
+        'categ_id',
+        'qty_available',
+        'standard_price',
+        'list_price',
+        'default_code',
+    ], { limit: 1000 }, credentials);
 }
 
 export async function getPosConfigs(
