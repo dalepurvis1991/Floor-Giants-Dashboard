@@ -432,9 +432,9 @@ export function processStockData(
         if (!productId) return;
 
         const current = productSalesMap.get(productId) || { qty: 0, revenue: 0, margin: 0 };
-        current.qty += line.qty;
-        current.revenue += line.price_subtotal;
-        current.margin += line.margin;
+        current.qty += (line.qty || 0);
+        current.revenue += (line.price_subtotal || 0);
+        current.margin += (line.margin || 0);
         productSalesMap.set(productId, current);
     });
 

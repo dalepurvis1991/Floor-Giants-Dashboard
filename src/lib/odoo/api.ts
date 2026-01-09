@@ -146,21 +146,31 @@ export async function getSaleOrderLines(
     credentials?: { uid: number; password: string }
 ): Promise<SaleOrderLine[]> {
     if (orderIds.length === 0) return [];
-    return searchRead<SaleOrderLine>(
-        'sale.order.line',
-        [['order_id', 'in', orderIds]],
-        [
-            'id',
-            'order_id',
-            'product_id',
-            'product_uom_qty',
-            'price_unit',
-            'price_subtotal',
-            'discount',
-        ],
-        { limit: 10000 },
-        credentials
-    );
+
+    const batchSize = 500;
+    const results: SaleOrderLine[] = [];
+
+    for (let i = 0; i < orderIds.length; i += batchSize) {
+        const batchIds = orderIds.slice(i, i + batchSize);
+        const batch = await searchRead<SaleOrderLine>(
+            'sale.order.line',
+            [['order_id', 'in', batchIds]],
+            [
+                'id',
+                'order_id',
+                'product_id',
+                'product_uom_qty',
+                'price_unit',
+                'price_subtotal',
+                'discount',
+            ],
+            { limit: 10000 },
+            credentials
+        );
+        results.push(...batch);
+    }
+
+    return results;
 }
 
 export async function getSaleOrdersByIds(
@@ -299,24 +309,35 @@ export async function getPosOrderLines(
     credentials?: { uid: number; password: string }
 ): Promise<PosOrderLine[]> {
     if (orderIds.length === 0) return [];
-    return searchRead<PosOrderLine>(
-        'pos.order.line',
-        [['order_id', 'in', orderIds]],
-        [
-            'id',
-            'order_id',
-            'product_id',
-            'qty',
-            'price_unit',
-            'price_subtotal',
-            'price_subtotal_incl',
-            'discount',
-            'margin',
-            'sale_order_origin_id',
-        ],
-        { limit: 10000 },
-        credentials
-    );
+
+    // Batch processing to avoid Large Domain issues in Odoo
+    const batchSize = 500;
+    const results: PosOrderLine[] = [];
+
+    for (let i = 0; i < orderIds.length; i += batchSize) {
+        const batchIds = orderIds.slice(i, i + batchSize);
+        const batch = await searchRead<PosOrderLine>(
+            'pos.order.line',
+            [['order_id', 'in', batchIds]],
+            [
+                'id',
+                'order_id',
+                'product_id',
+                'qty',
+                'price_unit',
+                'price_subtotal',
+                'price_subtotal_incl',
+                'discount',
+                'margin',
+                'sale_order_origin_id',
+            ],
+            { limit: 10000 },
+            credentials
+        );
+        results.push(...batch);
+    }
+
+    return results;
 }
 
 export async function getProductCategories(
