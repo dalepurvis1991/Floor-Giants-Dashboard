@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
         const [posLines, categories, refunds] = await Promise.all([
             getPosOrderLines(posOrderIds, credentials),
             getProductCategories(credentials),
-            getRefunds(dateFrom, dateTo, credentials)
+            getRefunds(dateFrom, dateTo, undefined, credentials)
         ]);
 
         // Fetch Linked Sale Orders for Salesperson Attribution
