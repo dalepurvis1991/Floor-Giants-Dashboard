@@ -51,6 +51,11 @@ export interface PosOrderLine {
     sale_order_origin_id?: [number, string]; // Link to original SO
 }
 
+export interface PosConfig {
+    id: number;
+    name: string;
+}
+
 export interface ProductCategory {
     id: number;
     name: string;
@@ -184,6 +189,12 @@ export async function getProducts(
         'name',
         'categ_id',
     ], {}, credentials);
+}
+
+export async function getPosConfigs(
+    credentials?: { uid: number; password: string }
+): Promise<PosConfig[]> {
+    return searchRead<PosConfig>('pos.config', [], ['id', 'name'], {}, credentials);
 }
 
 export async function getPosOrders(

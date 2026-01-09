@@ -23,7 +23,7 @@ const objectClient = isSecure
 async function authenticate(): Promise<number> {
     return new Promise((resolve, reject) => {
         // Authenticating as the user in env
-        commonClient.methodCall('authenticate', [db, username, password, {}], (err: Error, uid: number) => {
+        commonClient.methodCall('authenticate', [db, username, password, {}], (err: any, uid: number) => {
             if (err) reject(err);
             else resolve(uid);
         });
@@ -32,7 +32,7 @@ async function authenticate(): Promise<number> {
 
 async function execute(uid: number, model: string, method: string, args: any[], kwargs: any = {}) {
     return new Promise((resolve, reject) => {
-        objectClient.methodCall('execute_kw', [db, uid, password, model, method, args, kwargs], (err: Error, result: any) => {
+        objectClient.methodCall('execute_kw', [db, uid, password, model, method, args, kwargs], (err: any, result: any) => {
             if (err) reject(err);
             else resolve(result);
         });

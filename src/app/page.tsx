@@ -59,6 +59,8 @@ export default function DashboardPage() {
     dateFrom: getDefaultDateFrom(),
     dateTo: getToday(),
   });
+  const [stores, setStores] = useState<{ id: number; name: string }[]>([]);
+  const [selectedStore, setSelectedStore] = useState<string>('');
 
   function getToday(): string {
     return new Date().toISOString().split('T')[0];
@@ -89,6 +91,17 @@ export default function DashboardPage() {
     router.push('/login');
   }
 
+  async function fetchStores() {
+    try {
+      const res = await fetch('/api/stores');
+      if (res.ok) {
+        setStores(await res.json());
+      }
+    } catch (e) {
+      console.error('Failed to fetch stores', e);
+    }
+  }
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -97,6 +110,7 @@ export default function DashboardPage() {
         dateFrom: filters.dateFrom,
         dateTo: filters.dateTo,
       });
+      if (selectedStore) params.append('storeId', selectedStore);
       const response = await fetch(`/api/dashboard?${params}`);
       if (response.status === 401) { // Added authentication check
         router.push('/login');
@@ -112,10 +126,11 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [filters, router]); // Added router to dependencies
+  }, [filters, selectedStore, router]); // Added selectedStore to dependencies
 
   useEffect(() => {
-    fetchUser(); // Call fetchUser on mount
+    fetchUser();
+    fetchStores();
     fetchData();
   }, [fetchData]);
 
@@ -135,9 +150,19 @@ export default function DashboardPage() {
           <LayoutDashboard size={32} className={styles.icon} />
           <div>
             <h1 className={styles.title}>Sales Dashboard</h1>
-            <p className={styles.subtitle}>Overview of sales performance across all stores</p>
+            <p className={styles.subtitle}>Overview of sales performance</p>
           </div>
         </div>
+
+        <select
+          className={styles.storeSelect}
+          value={selectedStore}
+          onChange={(e) => setSelectedStore(e.target.value)}
+        >
+          <option value="">All Stores</option>
+          {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+        </select>
+
         {user && ( // Added user info and logout button
           <div className={styles.userInfo}>
             <span className={styles.username}>Logged in as {user.username}</span>

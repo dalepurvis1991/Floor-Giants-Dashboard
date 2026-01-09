@@ -32,10 +32,13 @@ export async function GET(request: NextRequest) {
         const queryUserId = searchParams.get('userId')
             ? parseInt(searchParams.get('userId')!)
             : undefined;
+        const storeId = searchParams.get('storeId')
+            ? parseInt(searchParams.get('storeId')!)
+            : undefined;
 
         // Fetch all required data in parallel with user credentials
         const [posOrders, categories] = await Promise.all([
-            getPosOrders(dateFrom, dateTo, undefined, queryUserId, credentials),
+            getPosOrders(dateFrom, dateTo, storeId, queryUserId, credentials),
             getProductCategories(credentials),
         ]);
 

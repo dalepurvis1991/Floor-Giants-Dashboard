@@ -22,7 +22,7 @@ const objectClient = isSecure
 
 async function authenticate(): Promise<number> {
     return new Promise((resolve, reject) => {
-        commonClient.methodCall('authenticate', [db, username, password, {}], (err: Error, uid: number) => {
+        commonClient.methodCall('authenticate', [db, username, password, {}], (err: any, uid: number) => {
             if (err) reject(err);
             else resolve(uid);
         });
