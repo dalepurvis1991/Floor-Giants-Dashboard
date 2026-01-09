@@ -1,0 +1,110 @@
+.card {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 0.9) 100%);
+    border: 1px solid rgba(148, 163, 184, 0.1);
+    border-radius: 16px;
+    padding: 24px;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    border-color: rgba(148, 163, 184, 0.2);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.card.critical {
+    border-color: rgba(239, 68, 68, 0.5);
+    background: linear-gradient(135deg, rgba(127, 29, 29, 0.4) 0%, rgba(15, 23, 42, 0.9) 100%);
+}
+
+.card.warning {
+    border-color: rgba(234, 179, 8, 0.4);
+}
+
+.card.ok {
+    border-color: rgba(34, 197, 94, 0.2);
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+}
+
+.storeName {
+    font-size: 20px;
+    font-weight: 700;
+    color: #f8fafc;
+    margin: 0;
+}
+
+.alert {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.alert-critical {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+    animation: pulse 2s infinite;
+}
+
+.alert-warning {
+    background: rgba(234, 179, 8, 0.2);
+    color: #eab308;
+}
+
+.alert-ok {
+    background: rgba(34, 197, 94, 0.2);
+    color: #22c55e;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.7;
+    }
+}
+
+.metrics {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+}
+
+.metric {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.metricLabel {
+    font-size: 12px;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.metricValue {
+    font-size: 18px;
+    font-weight: 600;
+    color: #f8fafc;
+}
+
+.metricValue.danger {
+    color: #ef4444;
+}

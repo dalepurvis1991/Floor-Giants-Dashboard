@@ -1,0 +1,87 @@
+.container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.filterGroup {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.icon {
+    color: #64748b;
+}
+
+.presets {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.presetBtn {
+    padding: 10px 20px;
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 10px;
+    color: #94a3b8;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.presetBtn:hover {
+    border-color: rgba(148, 163, 184, 0.4);
+    color: #f8fafc;
+}
+
+.presetBtn.active {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(168, 85, 247, 0.3));
+    border-color: rgba(99, 102, 241, 0.5);
+    color: #f8fafc;
+}
+
+.customDates {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.dateInput {
+    padding: 10px 16px;
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 8px;
+    color: #f8fafc;
+    font-size: 14px;
+}
+
+.dateInput:focus {
+    outline: none;
+    border-color: rgba(99, 102, 241, 0.5);
+}
+
+.dateSeparator {
+    color: #64748b;
+}
+
+.applyBtn {
+    padding: 10px 24px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.applyBtn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
+}

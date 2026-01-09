@@ -1,0 +1,43 @@
+﻿[dotenv@17.2.3] injecting env (4) from .env.local -- tip: Ô£à audit secrets and track compliance: https://dotenvx.com/ops
+Authenticating...
+Authenticated as UID: 7
+
+--- sale.order fields containing "margin" or "cost" ---
+  amount_untaxed: Untaxed Amount (monetary)
+  amount_tax: Taxes (monetary)
+  amount_total: Total (monetary)
+  amount_to_invoice: Un-invoiced Balance (monetary)
+  amount_invoiced: Already invoiced (monetary)
+  amount_paid: Payment Transactions Amount (float)
+  amount_undiscounted: Amount Before Discount (float)
+  reward_amount: Reward Amount (float)
+  amount_unpaid: Amount To Pay In POS (monetary)
+  amount_delivery: Delivery Amount (monetary)
+  integration_amount_total: e-Commerce Total Amount (monetary)
+  is_total_amount_difference: Is Total Amount Difference (boolean)
+  total_amount_difference_error_message: Error Message (text)
+
+--- sale.order.line fields containing "margin", "cost", or "purchase" ---
+  points_cost: Points Cost (float)
+  purchase_line_ids: Generated Purchase Lines (one2many)
+  purchase_line_count: Number of generated purchase items (integer)
+
+--- pos.order fields containing "margin" or "cost" ---
+  amount_difference: Difference (monetary)
+  amount_tax: Taxes (monetary)
+  amount_total: Total (monetary)
+  amount_paid: Paid (monetary)
+  amount_return: Returned (monetary)
+  margin: Margin (monetary)
+  margin_percent: Margin (%) (float)
+  is_total_cost_computed: Is Total Cost Computed (boolean)
+  tip_amount: Tip Amount (monetary)
+  next_online_payment_amount: Next online payment amount to pay (float)
+  sh_amount_residual: Amount Due (monetary)
+
+--- pos.order.line fields containing "margin" or "cost" ---
+  margin: Margin (monetary)
+  margin_percent: Margin (%) (float)
+  total_cost: Total cost (float)
+  is_total_cost_computed: Is Total Cost Computed (boolean)
+  points_cost: Points Cost (float)
