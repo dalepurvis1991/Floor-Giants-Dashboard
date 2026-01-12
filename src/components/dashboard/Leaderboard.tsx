@@ -15,6 +15,7 @@ interface SalespersonData {
     orderCount: number;
     atv?: number;
     conversionRate?: number;
+    valueConverted?: number;
 }
 
 interface LeaderboardProps {
@@ -43,7 +44,9 @@ export default function Leaderboard({ data, onSalespersonClick }: LeaderboardPro
 
     const sortedData = [...data].sort((a, b) => {
         const multiplier = sortOrder === 'asc' ? 1 : -1;
-        return (a[sortBy] - b[sortBy]) * multiplier;
+        const valA = (a[sortBy] as number) || 0;
+        const valB = (b[sortBy] as number) || 0;
+        return (valA - valB) * multiplier;
     });
 
     return (
