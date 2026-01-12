@@ -9,7 +9,7 @@ import {
     getProducts,
     getSaleOrdersByIds,
 } from '@/lib/odoo/api';
-import { processDashboardData } from '@/lib/odoo/processor';
+import { processDashboardData } from '../../../lib/odoo/processor';
 import { getSession } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {

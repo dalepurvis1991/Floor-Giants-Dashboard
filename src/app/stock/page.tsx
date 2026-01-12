@@ -2,54 +2,58 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-    RefreshCw,
-    Package,
-    TrendingUp,
-    AlertTriangle,
-    PieChart,
-    LayoutDashboard
-} from 'lucide-react';
+import { Package, RefreshCw, AlertTriangle, TrendingUp, Users } from 'lucide-react';
+import Image from 'next/image';
+import styles from './page.module.css';
 import StatCard from '@/components/dashboard/StatCard';
 import DashboardFilters from '@/components/dashboard/DashboardFilters';
-import styles from './page.module.css';
+import ChartTableToggle from '@/components/ui/ChartTableToggle';
+import HelpTooltip from '@/components/ui/HelpTooltip';
+import {
+    PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend
+} from 'recharts';
 
 interface StockMetrics {
-    topByQuantity: any[];
-    topByRevenue: any[];
-    topByMargin: any[];
-    valuationByCategory: any[];
-    alerts: any[];
     totalValuation: number;
+    valuationByCategory: { category: string; value: number; itemCount: number }[];
+    alerts: any[];
+    scraps: any[];
+    totalScrapValue: number;
+    suggestions: any[];
 }
 
-export default function StockDashboard() {
-    const [metrics, setMetrics] = useState<StockMetrics | null>(null);
+export default function StockPage() {
+    const router = useRouter();
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [stores, setStores] = useState<any[]>([]);
+    const [data, setData] = useState<StockMetrics | null>(null);
+    const [filters, setFilters] = useState({
+        dateFrom: getDefaultDateFrom(), // Default to 30 days for stock movement analysis
+        dateTo: getToday(),
+    });
+    const [stores, setStores] = useState<{ id: number; name: string }[]>([]);
     const [selectedStore, setSelectedStore] = useState<string>('');
     const [selectedRegion, setSelectedRegion] = useState<string>('');
-    const [filters, setFilters] = useState({
-        dateFrom: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0],
-        dateTo: new Date().toISOString().split('T')[0]
-    });
 
-    const router = useRouter();
+    function getToday(): string {
+        return new Date().toISOString().split('T')[0];
+    }
 
-    const fetchStores = useCallback(async () => {
-        try {
-            const response = await fetch('/api/stores');
-            const data = await response.json();
-            setStores(data);
-        } catch (err) {
-            console.error('Failed to fetch stores:', err);
-        }
+    function getDefaultDateFrom(): string {
+        const date = new Date();
+        date.setDate(date.getDate() - 30);
+        return date.toISOString().split('T')[0];
+    }
+
+    // Fetch stores on mount
+    useEffect(() => {
+        fetch('/api/stores')
+            .then(res => res.json())
+            .then(data => setStores(data))
+            .catch(err => console.error('Failed to fetch stores:', err));
     }, []);
 
-    const fetchStockData = useCallback(async () => {
+    const fetchData = useCallback(async () => {
         setLoading(true);
-        setError(null);
         try {
             const params = new URLSearchParams({
                 dateFrom: filters.dateFrom,
@@ -59,48 +63,76 @@ export default function StockDashboard() {
             if (selectedRegion) params.append('region', selectedRegion);
 
             const response = await fetch(`/api/stock?${params}`);
-            if (response.status === 401) {
-                router.push('/login');
-                return;
+            if (response.ok) {
+                const data = await response.json();
+                setData(data);
             }
-            if (!response.ok) throw new Error('Failed to fetch stock data');
-            const data = await response.json();
-            setMetrics(data);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'An error occurred');
+        } catch (error) {
+            console.error('Failed to fetch stock data:', error);
         } finally {
             setLoading(false);
         }
-    }, [router, filters, selectedStore, selectedRegion]);
+    }, [filters, selectedStore, selectedRegion]);
 
     useEffect(() => {
-        fetchStores();
-    }, [fetchStores]);
+        fetchData();
+    }, [fetchData]);
 
-    useEffect(() => {
-        fetchStockData();
-    }, [fetchStockData]);
-
-    const handleFilterChange = (newFilters: { dateFrom: string; dateTo: string }) => {
-        setFilters(newFilters);
+    const handleFilterChange = (newFilters: any) => {
+        setFilters({ dateFrom: newFilters.dateFrom, dateTo: newFilters.dateTo });
+        // Don't update store/region here as they are now controlled separately
     };
 
     const formatCurrency = (value: number) =>
-        new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(value);
+        new Intl.NumberFormat('en-GB', {
+            style: 'currency',
+            currency: 'GBP',
+            maximumFractionDigits: 0
+        }).format(value);
+
+    // Color palette for charts
+    const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#0ea5e9'];
+
+    // Loading state
+    if (loading && !data) {
+        return (
+            <div className={styles.container}>
+                <header className={styles.header}>
+                    <div className={styles.titleSection}>
+                        <Image src="/logo.png" alt="Floor Giants Logo" width={40} height={40} className={styles.logo} />
+                        <div>
+                            <h1 className={styles.title}>Floor Giants Dashboard</h1>
+                            <p className={styles.subtitle}>Inventory Management & Stock</p>
+                        </div>
+                    </div>
+                </header>
+                <div className={styles.loading}>
+                    <RefreshCw className={styles.spinning} size={48} />
+                    <p>Loading Stock Dashboard...</p>
+                </div>
+            </div>
+        );
+    }
+
+    const criticalAlerts = data.alerts.filter(a => a.status === 'out_of_stock' || a.status === 'critical_lead').length;
 
     return (
         <div className={styles.container}>
             <header className={styles.header}>
                 <div className={styles.titleSection}>
-                    <Package size={32} style={{ color: '#818cf8' }} />
+                    <Image src="/logo.png" alt="Floor Giants Logo" width={40} height={40} className={styles.logo} />
                     <div>
-                        <h1 className={styles.title}>Inventory Analysis</h1>
-                        <p className={styles.subtitle}>Stock levels and performance insights</p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <h1 className={styles.title}>Floor Giants Dashboard</h1>
+                            <HelpTooltip text="Overview of current stock levels across all locations." />
+                        </div>
+                        <p className={styles.subtitle}>Inventory Management & Stock</p>
                     </div>
                 </div>
 
                 <nav className={styles.nav}>
                     <button className={styles.navBtn} onClick={() => router.push('/')}>Sales</button>
+                    <button className={styles.navBtn} onClick={() => router.push('/quotes')}>Quotes</button>
                     <button className={`${styles.navBtn} ${styles.active}`}>Stock</button>
                 </nav>
 
@@ -110,7 +142,7 @@ export default function StockDashboard() {
                         value={selectedRegion}
                         onChange={(e) => {
                             setSelectedRegion(e.target.value);
-                            setSelectedStore(''); // Clear store selection when region changes
+                            setSelectedStore(''); // Clear store when region changes
                         }}
                     >
                         <option value="">All Regions</option>
@@ -124,154 +156,170 @@ export default function StockDashboard() {
                         onChange={(e) => setSelectedStore(e.target.value)}
                     >
                         <option value="">All Stores</option>
-                        {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        {stores.map(s => (
+                            <option key={s.id} value={s.id}>{s.name}</option>
+                        ))}
                     </select>
                 </div>
 
-                <button className={styles.refreshBtn} onClick={fetchStockData} disabled={loading}>
+                <button className={styles.refreshBtn} onClick={fetchData} disabled={loading}>
                     <RefreshCw size={18} className={loading ? styles.spinning : ''} />
                     Refresh
                 </button>
             </header>
 
-            <section className={styles.filtersSection}>
-                <DashboardFilters onFilterChange={handleFilterChange} />
+            <section className={styles.filters}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                    <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#94a3b8' }}>Filter Data</h3>
+                    <HelpTooltip text="Adjust the date range to analyze stock movements and scrap over time." />
+                </div>
+                <DashboardFilters
+                    onFilterChange={handleFilterChange}
+                // Removed showStoreFilter/showRegionFilter as they are now in the header
+                />
             </section>
 
-            {loading && !metrics && (
-                <div className={styles.loading}>
-                    <RefreshCw size={48} className={styles.spinning} />
-                    <p>Loading inventory data...</p>
-                </div>
-            )}
+            {/* KPI Grid */}
+            <section className={styles.statsGrid}>
+                <StatCard
+                    title="Total Valuation"
+                    value={formatCurrency(data.totalValuation)}
+                    subValue="Cost Value"
+                    variant="default"
+                    helpText="Total cost value of all stock currently on hand."
+                />
+                <StatCard
+                    title="Stock Alerts"
+                    value={criticalAlerts}
+                    subValue="Critical Items"
+                    variant={criticalAlerts > 0 ? 'danger' : 'success'}
+                    helpText="Items with 0 stock or below lead time requirements."
+                />
+                <StatCard
+                    title="Scrap / Write-offs"
+                    value={formatCurrency(data.totalScrapValue)}
+                    subValue="This Period"
+                    variant="warning"
+                    helpText="Value of items scrapped or written off in the selected period."
+                />
+                <StatCard
+                    title="Slow Moving"
+                    value={data.alerts.filter(a => a.status === 'slow_mover').length}
+                    subValue="> 14 days no sales"
+                    variant="default"
+                    helpText="Items with stock but no sales in the filtered period."
+                />
+            </section>
 
-            {error && (
-                <div className={styles.error}>
-                    <p>Error loading stock data: {error}</p>
-                    <button onClick={fetchStockData} className={styles.retryBtn}>Try Again</button>
-                </div>
-            )}
+            {/* Main Content Area */}
+            <section className={styles.mainContent}>
+                {/* Left Column */}
+                <div className="flex flex-col gap-6">
+                    <ChartTableToggle
+                        title="Valuation by Category"
+                        helpText="Stock value distribution across product categories."
+                        chart={
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={data.valuationByCategory}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={60}
+                                        outerRadius={80}
+                                        paddingAngle={5}
+                                        dataKey="value"
+                                        nameKey="category"
+                                    >
+                                        {data.valuationByCategory.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                        ))}
+                                    </Pie>
+                                    <RechartsTooltip
+                                        contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}
+                                        formatter={(value: number) => formatCurrency(value)}
+                                    />
+                                    <Legend verticalAlign="bottom" height={36} />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        }
+                        tableData={data.valuationByCategory}
+                        tableColumns={[
+                            { header: 'Category', accessor: 'category' },
+                            { header: 'Items', accessor: 'itemCount', className: 'text-right' },
+                            { header: 'Value', accessor: (row) => formatCurrency(row.value), className: 'text-right' },
+                        ]}
+                    />
 
-            {metrics && (
-                <>
-                    <section className={styles.summaryGrid}>
-                        <StatCard
-                            title="Total Stock Value"
-                            value={formatCurrency(metrics.totalValuation)}
-                            variant="default"
-                        />
-                        <StatCard
-                            title="Critical Alerts"
-                            value={String(metrics.alerts.filter(a => a.status === 'out_of_stock').length)}
-                            subValue="Out of stock items"
-                            variant="danger"
-                        />
-                        <StatCard
-                            title="Slow Moving Items"
-                            value={String(metrics.alerts.filter(a => a.status === 'slow_mover').length)}
-                            subValue="No sales in selected period"
-                            variant="warning"
-                        />
-                    </section>
-
-                    <div className={styles.mainGrid}>
-                        <div className={styles.tablesColumn}>
-                            <section className={styles.card}>
-                                <h3 className={styles.cardTitle}>
-                                    <TrendingUp size={20} style={{ color: '#4ade80' }} />
-                                    Top 10 Best Sellers
-                                </h3>
-                                <div className={styles.tableContainer}>
-                                    <table className={styles.table}>
-                                        <thead>
-                                            <tr>
-                                                <th>Product</th>
-                                                <th>SKU</th>
-                                                <th>Qty Sold</th>
-                                                <th>Revenue</th>
-                                                <th>Margin %</th>
-                                                <th>Stock</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {metrics.topByQuantity.map(item => (
-                                                <tr key={item.id}>
-                                                    <td>{item.name}</td>
-                                                    <td><span className={styles.sku}>{item.sku}</span></td>
-                                                    <td>{item.quantity.toFixed(0)}</td>
-                                                    <td>{formatCurrency(item.revenue)}</td>
-                                                    <td>{item.marginPercent.toFixed(1)}%</td>
-                                                    <td>
-                                                        <span className={`${styles.stockBadge} ${item.stockLevel <= 0 ? styles.stockOut : item.stockLevel < 5 ? styles.stockLow : styles.stockOk}`}>
-                                                            {item.stockLevel}
-                                                        </span>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                            {metrics.topByQuantity.length === 0 && (
-                                                <tr><td colSpan={6} style={{ textAlign: 'center', opacity: 0.5, padding: '2rem' }}>No sales data for this period</td></tr>
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </section>
+                    <div className={styles.tableCard}>
+                        <div className="flex items-center gap-2 mb-4">
+                            <TrendingUp size={20} className="text-emerald-400" />
+                            <h2 className="text-lg font-semibold text-slate-100">Restock Suggestions</h2>
+                            <HelpTooltip text="High revenue items with low stock (< 2 units)." />
                         </div>
-
-                        <aside className={styles.alertsColumn}>
-                            <section className={styles.card}>
-                                <h3 className={styles.cardTitle}>
-                                    <AlertTriangle size={20} style={{ color: '#f87171' }} />
-                                    Inventory Alerts
-                                </h3>
-                                <div className={styles.alertList}>
-                                    {metrics.alerts.map(alert => (
-                                        <div key={`${alert.id}-${alert.status}`} className={`${styles.alertItem} ${styles[alert.status === 'out_of_stock' ? 'out' : alert.status === 'low' ? 'low' : 'slow']}`}>
-                                            <div className={styles.alertContent}>
-                                                <span className={styles.alertName}>{alert.name}</span>
-                                                <span className={styles.alertMeta}>
-                                                    {alert.status === 'out_of_stock' ? 'Out of Stock' :
-                                                        alert.status === 'low' ? `Low Stock (${alert.currentStock} left)` :
-                                                            `Slow Mover (${alert.currentStock} in stock)`}
-                                                </span>
-                                            </div>
-                                            <div className={styles.alertValue}>
-                                                {alert.status !== 'slow_mover' && (
-                                                    <span style={{ fontSize: '0.8rem', opacity: 0.7 }}>
-                                                        {alert.avgWeeklySales.toFixed(1)}/wk
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
+                        <div className={styles.tableContainer} style={{ maxHeight: '300px' }}>
+                            <table className={styles.table}>
+                                <thead>
+                                    <tr>
+                                        <th>Product</th>
+                                        <th className="text-right">Stock</th>
+                                        <th className="text-right">Revenue</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {data.suggestions.map((p: any) => (
+                                        <tr key={p.id} className={styles.activeRow}>
+                                            <td>
+                                                <div>{p.name}</div>
+                                                <div className="text-xs text-slate-400">{p.sku}</div>
+                                            </td>
+                                            <td className="text-right text-red-400 font-bold">{p.stockLevel}</td>
+                                            <td className="text-right">{formatCurrency(p.revenue)}</td>
+                                        </tr>
                                     ))}
-                                    {metrics.alerts.length === 0 && (
-                                        <p style={{ textAlign: 'center', opacity: 0.5 }}>No critical alerts</p>
+                                    {data.suggestions.length === 0 && (
+                                        <tr><td colSpan={3} className="p-4 text-center text-slate-500">No suggestions available</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Right Column - Alerts List */}
+                <div className="flex flex-col gap-6">
+                    <div className={styles.tableCard}>
+                        <div className="flex items-center gap-2 mb-4">
+                            <AlertTriangle size={20} className="text-amber-400" />
+                            <h2 className="text-lg font-semibold text-slate-100">Critical Alerts</h2>
+                            <HelpTooltip text="Items items that have hit zero stock or are below critical thresholds." />
+                        </div>
+                        <div className={styles.tableContainer} style={{ maxHeight: '600px' }}>
+                            {data.alerts.map((alert: any) => (
+                                <div key={alert.id} className="p-3 mb-2 rounded bg-slate-800/50 border border-slate-700 hover:border-slate-600 transition-colors">
+                                    <div className="flex justify-between items-start mb-1">
+                                        <span className={`text-xs font-bold px-2 py-0.5 rounded ${alert.status === 'out_of_stock' ? 'bg-red-500/20 text-red-400' :
+                                            alert.status === 'critical_lead' ? 'bg-orange-500/20 text-orange-400' :
+                                                'bg-slate-500/20 text-slate-400'
+                                            }`}>
+                                            {alert.status.replace('_', ' ').toUpperCase()}
+                                        </span>
+                                        <span className="text-xs text-slate-500">Stock: {alert.currentStock}</span>
+                                    </div>
+                                    <div className="text-sm font-medium text-slate-200">{alert.name}</div>
+                                    <div className="text-xs text-slate-400 mb-1">{alert.sku}</div>
+                                    {alert.message && (
+                                        <div className="text-xs text-amber-500 mt-1">{alert.message}</div>
                                     )}
                                 </div>
-                            </section>
-
-                            <section className={styles.card} style={{ marginTop: '1.5rem' }}>
-                                <h3 className={styles.cardTitle}>
-                                    <PieChart size={20} style={{ color: '#818cf8' }} />
-                                    Stock Value by Category
-                                </h3>
-                                <div className={styles.alertList}>
-                                    {metrics.valuationByCategory.map(cat => (
-                                        <div key={cat.category} className={styles.alertItem}>
-                                            <div className={styles.alertContent}>
-                                                <span className={styles.alertName}>{cat.category}</span>
-                                                <span className={styles.alertMeta}>{cat.itemCount} items</span>
-                                            </div>
-                                            <div className={styles.alertValue} style={{ fontWeight: 600 }}>
-                                                {formatCurrency(cat.value)}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </section>
-                        </aside>
+                            ))}
+                            {data.alerts.length === 0 && (
+                                <div className="p-4 text-center text-slate-500">No alerts found</div>
+                            )}
+                        </div>
                     </div>
-                </>
-            )}
+                </div>
+            </section>
         </div>
     );
 }

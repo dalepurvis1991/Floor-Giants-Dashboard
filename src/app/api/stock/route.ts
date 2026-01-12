@@ -5,6 +5,7 @@ import {
     getProductCategories,
     getProducts,
     getStockReport,
+    getScraps,
 } from '@/lib/odoo/api';
 import { processStockData } from '@/lib/odoo/processor';
 import { getSession } from '@/lib/auth';
@@ -105,16 +106,26 @@ export async function GET(request: NextRequest) {
 
         console.log(`[Stock API] Total unique products for processing: ${products.length}`);
 
+        // 4.5 Fetch Scraps (Write-offs)
+        let scraps: any[] = [];
+        try {
+            console.log('[Stock API] Fetching scraps...');
+            scraps = await getScraps(dateFrom, dateTo, credentials);
+        } catch (e) {
+            console.error('[Stock API] Error fetching scraps:', e);
+        }
+
         // 5. Process Data
         console.log('[Stock API] Processing final metrics...');
         try {
             const stockMetrics = processStockData(
                 products,
-                posOrders, // Now passed correctly
+                posOrders,
                 posLines,
                 categories,
                 daysInPeriod,
-                region
+                scraps,
+                region as any
             );
             console.log('[Stock API] Success');
             return NextResponse.json(stockMetrics);

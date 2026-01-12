@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowUpDown, TrendingUp, TrendingDown } from 'lucide-react';
+import { ArrowUpDown, TrendingUp, TrendingDown, ChevronDown, ChevronUp } from 'lucide-react';
 import styles from './Leaderboard.module.css';
+import HelpTooltip from '../ui/HelpTooltip';
 
 interface SalespersonData {
     id: number;
@@ -24,6 +25,7 @@ type SortKey = 'totalSales' | 'marginPercent' | 'discounts';
 export default function Leaderboard({ data, onSalespersonClick }: LeaderboardProps) {
     const [sortBy, setSortBy] = useState<SortKey>('totalSales');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+    const [showAll, setShowAll] = useState(false);
 
     const formatCurrency = (value: number) =>
         new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(value);
@@ -45,7 +47,10 @@ export default function Leaderboard({ data, onSalespersonClick }: LeaderboardPro
     return (
         <div className={styles.container}>
             <div className={styles.header}>
-                <h2 className={styles.title}>Sales Leaderboard</h2>
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <h2 className={styles.title}>Sales Leaderboard</h2>
+                    <HelpTooltip text="Ranking of salespeople based on total sales value (Ex VAT)." />
+                </div>
                 <div className={styles.sortButtons}>
                     {(['totalSales', 'marginPercent', 'discounts'] as SortKey[]).map((key) => (
                         <button
@@ -61,7 +66,7 @@ export default function Leaderboard({ data, onSalespersonClick }: LeaderboardPro
             </div>
 
             <div className={styles.list}>
-                {sortedData.map((person, index) => (
+                {sortedData.slice(0, showAll ? undefined : 10).map((person, index) => (
                     <motion.div
                         key={person.id}
                         className={`${styles.row} ${onSalespersonClick ? styles.clickable : ''}`}
@@ -94,10 +99,40 @@ export default function Leaderboard({ data, onSalespersonClick }: LeaderboardPro
                                 <span className={styles.statValue}>{formatCurrency(person.discounts)}</span>
                                 <span className={styles.statLabel}>Discounts</span>
                             </div>
+
+
                         </div>
                     </motion.div>
                 ))}
             </div>
+
+            {data.length > 10 && (
+                <button
+                    className={styles.showMoreBtn}
+                    onClick={() => setShowAll(!showAll)}
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        width: '100%',
+                        padding: '12px',
+                        background: 'transparent',
+                        borderTop: '1px solid rgba(255,255,255,0.1)',
+                        color: '#94a3b8',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        fontWeight: 500,
+                        transition: 'all 0.2s'
+                    }}
+                >
+                    {showAll ? (
+                        <>Show Less <ChevronUp size={16} /></>
+                    ) : (
+                        <>Show All ({data.length}) <ChevronDown size={16} /></>
+                    )}
+                </button>
+            )}
         </div>
     );
 }

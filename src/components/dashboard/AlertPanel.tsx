@@ -8,15 +8,21 @@ interface Alert {
     orderId: number;
     orderName: string;
     marginPercent: number;
+    saleValue?: number;
+    isTrade?: boolean;
 }
 
 interface AlertPanelProps {
     lowMarginAlerts: Alert[];
     criticalStores: { name: string; marginPercent: number }[];
     onOrderClick?: (orderId: number, orderName: string) => void;
+    onSeeMoreOrders?: () => void;
 }
 
-export default function AlertPanel({ lowMarginAlerts, criticalStores, onOrderClick }: AlertPanelProps) {
+const formatCurrency = (value: number) =>
+    new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', maximumFractionDigits: 0 }).format(value);
+
+export default function AlertPanel({ lowMarginAlerts, criticalStores, onOrderClick, onSeeMoreOrders }: AlertPanelProps) {
     const hasAlerts = lowMarginAlerts.length > 0 || criticalStores.length > 0;
 
     if (!hasAlerts) {
@@ -69,12 +75,23 @@ export default function AlertPanel({ lowMarginAlerts, criticalStores, onOrderCli
                                 className={`${styles.alertItem} ${onOrderClick ? styles.clickable : ''}`}
                                 onClick={() => onOrderClick?.(alert.orderId, alert.orderName)}
                             >
-                                <span className={styles.alertName}>{alert.orderName}</span>
-                                <span className={styles.alertValue}>{alert.marginPercent.toFixed(1)}%</span>
+                                <div className={styles.alertMain}>
+                                    <span className={styles.alertName}>{alert.orderName}</span>
+                                    {alert.isTrade && <span className={styles.tradeBadge}>Trade</span>}
+                                </div>
+                                <div className={styles.alertDetails}>
+                                    {alert.saleValue !== undefined && (
+                                        <span className={styles.saleValue}>{formatCurrency(alert.saleValue)}</span>
+                                    )}
+                                    <span className={styles.alertValue}>{alert.marginPercent.toFixed(1)}%</span>
+                                </div>
                             </div>
                         ))}
                         {lowMarginAlerts.length > 10 && (
-                            <p className={styles.moreAlerts}>
+                            <p
+                                className={`${styles.moreAlerts} ${onSeeMoreOrders ? styles.clickableMore : ''}`}
+                                onClick={() => onSeeMoreOrders?.()}
+                            >
                                 +{lowMarginAlerts.length - 10} more orders
                             </p>
                         )}
@@ -84,3 +101,4 @@ export default function AlertPanel({ lowMarginAlerts, criticalStores, onOrderCli
         </motion.div>
     );
 }
+

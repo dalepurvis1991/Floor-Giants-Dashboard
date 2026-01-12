@@ -16,6 +16,7 @@ interface CategoryData {
 
 interface CategoryChartProps {
     data: CategoryData[];
+    onCategoryClick?: (category: string) => void;
 }
 
 const COLORS = [
@@ -29,7 +30,7 @@ const COLORS = [
     '#22c55e',
 ];
 
-export default function CategoryChart({ data }: CategoryChartProps) {
+export default function CategoryChart({ data, onCategoryClick }: CategoryChartProps) {
     const [chartType, setChartType] = useState<'bar' | 'pie'>('bar');
 
     const formatCurrency = (value: number) =>
@@ -48,6 +49,7 @@ export default function CategoryChart({ data }: CategoryChartProps) {
                     <p>Sales: {formatCurrency(item.sales)}</p>
                     <p>Margin: {item.marginPercent.toFixed(1)}%</p>
                     <p>Discounts: {formatCurrency(item.discounts)}</p>
+                    {onCategoryClick && <p className={styles.clickHint}>Click to see products</p>}
                 </div>
             );
         }
@@ -80,20 +82,25 @@ export default function CategoryChart({ data }: CategoryChartProps) {
 
             <div className={styles.chartContainer}>
                 {chartType === 'bar' ? (
-                    <ResponsiveContainer width="100%" height={350}>
+                    <ResponsiveContainer width="100%" height={450}>
                         <BarChart data={data as any[]} layout="vertical" margin={{ left: 20, right: 20 }}>
                             <XAxis type="number" tickFormatter={formatCurrency} stroke="#64748b" />
-                            <YAxis type="category" dataKey="category" stroke="#64748b" width={120} />
+                            <YAxis type="category" dataKey="category" stroke="#64748b" width={140} interval={0} fontSize={12} />
                             <Tooltip content={<CustomTooltip />} />
-                            <Bar dataKey="sales" radius={[0, 6, 6, 0]}>
+                            <Bar
+                                dataKey="sales"
+                                radius={[0, 6, 6, 0]}
+                                style={{ cursor: onCategoryClick ? 'pointer' : 'default' }}
+                                onClick={(entry) => onCategoryClick?.(entry.category)}
+                            >
                                 {data.map((entry, index) => (
-                                    <Cell key={entry.category} fill={COLORS[index % COLORS.length]} />
+                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                 ))}
                             </Bar>
                         </BarChart>
                     </ResponsiveContainer>
                 ) : (
-                    <ResponsiveContainer width="100%" height={350}>
+                    <ResponsiveContainer width="100%" height={450}>
                         <PieChart>
                             <Pie
                                 data={data as any[]}
@@ -104,6 +111,8 @@ export default function CategoryChart({ data }: CategoryChartProps) {
                                 outerRadius={120}
                                 innerRadius={60}
                                 paddingAngle={2}
+                                style={{ cursor: onCategoryClick ? 'pointer' : 'default' }}
+                                onClick={(entry) => onCategoryClick?.(entry.category)}
                             >
                                 {data.map((entry, index) => (
                                     <Cell key={entry.category} fill={COLORS[index % COLORS.length]} />
@@ -113,7 +122,6 @@ export default function CategoryChart({ data }: CategoryChartProps) {
                             <Legend />
                         </PieChart>
                     </ResponsiveContainer>
-
                 )}
             </div>
         </motion.div>

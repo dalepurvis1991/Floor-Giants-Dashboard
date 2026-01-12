@@ -1,3 +1,4 @@
+// Processor utility for Odoo data - Force refresh
 import {
     SaleOrder,
     SaleOrderLine,
@@ -6,6 +7,8 @@ import {
     ProductCategory,
     Product,
 } from './api';
+import { isSample, mapToCategory } from './categorizer';
+
 
 export interface CategorySales {
     category: string;
@@ -55,11 +58,33 @@ export interface DashboardMetrics {
     totalRefunds: number;
     refundCount: number;
     averageMarginPercent: number;
+    tradeSales: number;
+    tradeSalesPercent: number;
     categoryBreakdown: CategorySales[];
     salespersonStats: SalespersonStats[];
     storeStats: StoreStats[];
     regionalStats: RegionalStats[];
-    lowMarginAlerts: { orderId: number; orderName: string; marginPercent: number }[];
+    lowMarginAlerts: {
+        orderId: number;
+        orderName: string;
+        marginPercent: number;
+        date_order: string;
+        amount_total: number;
+        partner_id: [number, string] | false;
+    }[];
+    productStats: ProductStat[];
+}
+
+export interface ProductStat {
+    id: number;
+    name: string;
+    sku: string;
+    sales: number;
+    margin: number;
+    marginPercent: number;
+    quantity: number;
+    category?: string;
+    type?: string;
 }
 
 export interface BestSeller {
@@ -83,38 +108,33 @@ export interface StockAlert {
     id: number;
     name: string;
     sku: string;
-    status: 'low' | 'out_of_stock' | 'slow_mover';
+    status: 'low' | 'out_of_stock' | 'slow_mover' | 'critical_lead';
     currentStock: number;
+    forecastedStock?: number;
     avgWeeklySales: number;
+    message?: string;
+}
+
+export interface ScrapStat {
+    productId: number;
+    name: string;
+    quantity: number;
+    value: number;
+    date: string;
 }
 
 export interface StockMetrics {
-    topByQuantity: BestSeller[];
-    topByRevenue: BestSeller[];
-    topByMargin: BestSeller[];
+    topByQuantity: ProductStockStat[];
+    topByRevenue: ProductStockStat[];
+    topByMargin: ProductStockStat[];
     valuationByCategory: StockValue[];
-    alerts: StockAlert[];
     totalValuation: number;
+    alerts: StockAlert[];
+    scraps: ScrapStat[];
+    totalScrapValue: number;
+    suggestions: ProductStockStat[];
 }
 
-const CATEGORY_MAP: Record<string, string> = {
-    spc: 'SPC',
-    lvt: 'LVT / LVC',
-    lvc: 'LVT / LVC',
-    laminate: 'Laminate',
-    carpet: 'Carpet',
-    engineered: 'Engineered Wood',
-    solid: 'Solid Wood',
-    accessories: 'Accessories',
-};
-
-function mapToCategory(categoryName: string): string {
-    const lower = categoryName.toLowerCase();
-    for (const [key, value] of Object.entries(CATEGORY_MAP)) {
-        if (lower.includes(key)) return value;
-    }
-    return 'Other';
-}
 
 const REGION_MAP: Record<string, 'North' | 'South'> = {
     'basildon': 'North',
@@ -178,9 +198,30 @@ export function processDashboardData(
     categories.forEach((cat) => categoryMap.set(cat.id, cat.complete_name || cat.name));
 
     const productCategoryMap = new Map<number, number>();
+    const productSkuMap = new Map<number, string>();
+    const productNameMap = new Map<number, string>();
+    const productStatsMap = new Map<number, ProductStat>();
+
     products.forEach((p) => {
         const catId = Array.isArray(p.categ_id) ? p.categ_id[0] : 0;
         productCategoryMap.set(p.id, catId);
+        productSkuMap.set(p.id, p.default_code || '');
+        productNameMap.set(p.id, p.name || '');
+        const productName = p.name || '';
+        const odooCatName = catId ? (categoryMap.get(catId) || 'Other') : 'Other';
+        const mappedCategory = mapToCategory(odooCatName, p.default_code || '', productName);
+
+        productStatsMap.set(p.id, {
+            id: p.id,
+            name: productName,
+            sku: p.default_code || '',
+            sales: 0,
+            margin: 0,
+            marginPercent: 0,
+            quantity: 0,
+            category: mappedCategory,
+            type: p.type
+        });
     });
 
     // Aggregate sales metrics
@@ -189,6 +230,7 @@ export function processDashboardData(
     let totalDiscounts = 0;
     let totalRefunds = 0;
     let refundCount = 0;
+    let tradeSales = 0;
 
     const categoryStats = new Map<string, { sales: number; margin: number; discounts: number }>();
     const salespersonMap = new Map<number, SalespersonStats>();
@@ -247,10 +289,17 @@ export function processDashboardData(
         // Calculate Order Totals from Lines (Ex VAT)
         let orderSalesExVat = 0;
         let orderDiscounts = 0;
-        const orderMargin = order.margin || 0; // Margin is usually Ex VAT in Odoo reporting but let's trust the field
+        let orderMarginBuilt = 0;
 
         orderLines.forEach(line => {
+            const prodSku = productSkuMap.get(Array.isArray(line.product_id) ? line.product_id[0] : 0) || '';
+            const prodName = productNameMap.get(Array.isArray(line.product_id) ? line.product_id[0] : 0) || '';
+
+            // Ignore samples from all financial totals
+            if (isSample(prodSku, prodName)) return;
+
             orderSalesExVat += line.price_subtotal; // Sum Ex VAT
+            orderMarginBuilt += line.margin || 0;
             const discountAmount = (line.price_unit * line.qty * line.discount) / 100;
             orderDiscounts += discountAmount;
         });
@@ -261,8 +310,25 @@ export function processDashboardData(
 
         // Net Sales and Margin
         totalSales += orderSalesExVat;
-        totalMargin += orderMargin;
+        totalMargin += orderMarginBuilt;
         totalDiscounts += orderDiscounts;
+
+        // Trade Sales Calculation
+        // Use Pricelist (if available in future) or simple name check for now as robust fallback
+        // We can check if partner Name contains 'Trade' or if we can fetch pricelist later.
+        // For now, let's assume if partner name has "Ltd" or "Limited" or "Trade" it is trade.
+        // Actually, let's use a simpler heuristic:
+        // Ideally we need the pricelist field on the partner.
+        // Since we don't have it on PosOrder.partner_id (it's just [id, name]), we'll use name content.
+        const partnerName = Array.isArray(order.partner_id) ? order.partner_id[1] : '';
+        const isTrade = partnerName.toLowerCase().includes('trade') ||
+            partnerName.toLowerCase().includes('ltd') ||
+            partnerName.toLowerCase().includes('limited') ||
+            partnerName.toLowerCase().includes('contract');
+
+        if (isTrade) {
+            tradeSales += orderSalesExVat;
+        }
 
         // Salesperson Processing
         const { id: userId, name: userName } = getSalespersonForOrder(order, orderLines, saleOrderMap);
@@ -281,7 +347,7 @@ export function processDashboardData(
         }
         const sp = salespersonMap.get(userId)!;
         sp.totalSales += orderSalesExVat;
-        sp.margin += orderMargin;
+        sp.margin += orderMarginBuilt;
         sp.discounts += orderDiscounts;
         sp.orderCount += 1;
 
@@ -301,7 +367,7 @@ export function processDashboardData(
         }
         const store = storeMap.get(configId)!;
         store.totalSales += orderSalesExVat;
-        store.margin += orderMargin;
+        store.margin += orderMarginBuilt;
         store.discounts += orderDiscounts;
         if (isRefund) {
             store.refundCount += 1;
@@ -312,7 +378,7 @@ export function processDashboardData(
         if (store.region !== 'Other') {
             const region = regionalMap.get(store.region as 'North' | 'South')!;
             region.totalSales += orderSalesExVat;
-            region.margin += orderMargin;
+            region.margin += orderMarginBuilt;
             region.discounts += orderDiscounts;
             region.orderCount += 1;
         }
@@ -335,7 +401,9 @@ export function processDashboardData(
         }
 
         const categoryName = categoryMap.get(categoryId) || 'Other';
-        const mappedCategory = mapToCategory(categoryName);
+        const productSku = productSkuMap.get(productId) || '';
+        const productName = productNameMap.get(productId) || '';
+        const mappedCategory = mapToCategory(categoryName, productSku, productName);
 
         if (!categoryStats.has(mappedCategory)) {
             categoryStats.set(mappedCategory, { sales: 0, margin: 0, discounts: 0 });
@@ -344,6 +412,14 @@ export function processDashboardData(
         cat.sales += line.price_subtotal;
         cat.margin += line.margin || 0;
         cat.discounts += discountAmount;
+
+        // Update product stats
+        if (productStatsMap.has(productId)) {
+            const pStat = productStatsMap.get(productId)!;
+            pStat.sales += line.price_subtotal;
+            pStat.margin += line.margin || 0;
+            pStat.quantity += line.qty;
+        }
     });
 
     // Calculate percentages and alerts
@@ -377,27 +453,49 @@ export function processDashboardData(
         });
     });
 
+    // Product SKU map already defined above for low margin alerts
+    // Actually it's already in productSkuMap so we can remove this redundant block later
+    // but for now we keep it consistent.
+
     // Low margin alerts (POS only)
-    const lowMarginAlerts: { orderId: number; orderName: string; marginPercent: number }[] = [];
+    const lowMarginAlerts: { orderId: number; orderName: string; marginPercent: number; saleValue: number; isTrade: boolean }[] = [];
     posOrders.forEach((order) => {
         const configName = Array.isArray(order.config_id) ? order.config_id[1] : '';
         if (filterRegion && getStoreRegion(configName) !== filterRegion) return;
 
-        const orderMargin = order.margin || 0;
-        // Use calculated Ex VAT sales if possible, but for individual component logic:
-        // We need order sales ex vat. We calculated it inside loop. 
-        // Let's re-calculate or approximate if acceptable?
-        // Actually we can just iterate posLinesByOrder again or just trust amount_total for ratio if VAT is consistent?
-        // User wants Ex-VAT mostly. Let's recalculate accurately.
         const orderLines = posLinesByOrder.get(order.id) || [];
-        const orderExVat = orderLines.reduce((sum, line) => sum + line.price_subtotal, 0);
+
+        // Filter out sample products for margin alert calculation
+        const filteredLines = orderLines.filter(line => {
+            const productId = Array.isArray(line.product_id) ? line.product_id[0] : 0;
+            const sku = productSkuMap.get(productId) || '';
+            const name = productNameMap.get(productId) || '';
+            return !isSample(sku, name);
+        });
+
+        // If all lines were samples, skip alert check
+        if (filteredLines.length === 0) return;
+
+        const orderMargin = filteredLines.reduce((sum, line) => sum + (line.margin || 0), 0);
+        const orderExVat = filteredLines.reduce((sum, line) => sum + line.price_subtotal, 0);
 
         const marginPercent = orderExVat > 0 ? (orderMargin / orderExVat) * 100 : 0;
-        if (marginPercent < 30 && orderExVat > 0) {
+
+        // Determine if trade account
+        const partnerName = Array.isArray(order.partner_id) ? order.partner_id[1] : '';
+        const isTrade = partnerName.toLowerCase().includes('trade') ||
+            partnerName.toLowerCase().includes('ltd') ||
+            partnerName.toLowerCase().includes('limited') ||
+            partnerName.toLowerCase().includes('contract');
+
+        // Exclude 0 or negative value orders from alerts (likely samples or corrections)
+        if (marginPercent < 30 && orderExVat > 0.1) {
             lowMarginAlerts.push({
                 orderId: order.id,
                 orderName: order.name,
                 marginPercent,
+                saleValue: orderExVat,
+                isTrade
             });
         }
     });
@@ -408,22 +506,33 @@ export function processDashboardData(
         totalMarginPercent,
         totalDiscounts,
         totalRefunds,
-        refundCount, // Calculated from POS
+        refundCount,
         averageMarginPercent: totalMarginPercent,
+        tradeSales,
+        tradeSalesPercent: totalSales > 0 ? (tradeSales / totalSales) * 100 : 0,
         categoryBreakdown: categoryBreakdown.sort((a, b) => b.sales - a.sales),
         salespersonStats: Array.from(salespersonMap.values()).sort((a, b) => b.totalSales - a.totalSales),
         storeStats: Array.from(storeMap.values()).sort((a, b) => b.totalSales - a.totalSales),
         regionalStats: Array.from(regionalMap.values()),
-        lowMarginAlerts: lowMarginAlerts.sort((a, b) => a.marginPercent - b.marginPercent),
+        lowMarginAlerts: lowMarginAlerts.sort((a, b) => new Date(b.date_order).getTime() - new Date(a.date_order).getTime()),
+        productStats: Array.from(productStatsMap.values())
+            .filter(p => p.sales > 0 || p.quantity > 0)
+            .map(p => ({
+                ...p,
+                marginPercent: p.sales > 0 ? (p.margin / p.sales) * 100 : 0
+            }))
+            .sort((a, b) => b.margin - a.margin)
     };
 }
+
 export function processStockData(
     products: Product[],
     posOrders: PosOrder[],
     posLines: PosOrderLine[],
     categories: ProductCategory[],
     daysInPeriod: number = 30,
-    filterRegion?: string
+    scraps: StockScrap[] = [],
+    filterRegion?: 'North' | 'South'
 ): StockMetrics {
     const productSalesMap = new Map<number, { qty: number; revenue: number; margin: number }>();
     const categoryValuationMap = new Map<string, { value: number; count: number }>();
@@ -464,7 +573,7 @@ export function processStockData(
     const processedProducts = products.map(p => {
         const sales = productSalesMap.get(p.id) || { qty: 0, revenue: 0, margin: 0 };
         const categoryName = p.categ_id ? (categoryMap.get(p.categ_id[0]) || 'Other') : 'Other';
-        const mappedCategory = mapToCategory(categoryName);
+        const mappedCategory = mapToCategory(categoryName, p.default_code || '', p.name || '');
 
         const stock = p.qty_available || 0;
         const cost = p.standard_price || 0;
@@ -478,47 +587,74 @@ export function processStockData(
         categoryValuationMap.set(mappedCategory, catVal);
 
         const avgWeeklySales = (sales.qty / daysInPeriod) * 7;
+        const sku = p.default_code || '';
+        const isEG = sku.toUpperCase().startsWith('EG-');
+        const requiredLeadStock = isEG ? avgWeeklySales * 16 : avgWeeklySales * 2;
 
-        // Check Alerts
-        if (stock <= 0) {
-            alerts.push({
-                id: p.id,
-                name: p.name,
-                sku: p.default_code || 'N/A',
-                status: 'out_of_stock',
-                currentStock: stock,
-                avgWeeklySales
-            });
-        } else if (stock < avgWeeklySales) {
-            alerts.push({
-                id: p.id,
-                name: p.name,
-                sku: p.default_code || 'N/A',
-                status: 'low',
-                currentStock: stock,
-                avgWeeklySales
-            });
-        } else if (stock > 0 && sales.qty === 0 && daysInPeriod >= 14) {
-            // Slow mover if stock > 0 but 0 sales in at least 2 weeks
-            alerts.push({
-                id: p.id,
-                name: p.name,
-                sku: p.default_code || 'N/A',
-                status: 'slow_mover',
-                currentStock: stock,
-                avgWeeklySales: 0
-            });
+        // Check Alerts (Only for stockable products)
+        if (p.type === 'product') {
+            if (stock <= 0) {
+                alerts.push({
+                    id: p.id,
+                    name: p.name,
+                    sku: sku || 'N/A',
+                    status: 'out_of_stock',
+                    currentStock: stock,
+                    forecastedStock: p.virtual_available || stock,
+                    avgWeeklySales
+                });
+            } else if (stock < requiredLeadStock) {
+                alerts.push({
+                    id: p.id,
+                    name: p.name,
+                    sku: sku || 'N/A',
+                    status: isEG ? 'critical_lead' : 'low',
+                    currentStock: stock,
+                    forecastedStock: p.virtual_available || stock,
+                    avgWeeklySales,
+                    message: isEG ? `EG Lead Time (16w req: ${requiredLeadStock.toFixed(1)})` : undefined
+                });
+            } else if (stock > 0 && sales.qty === 0 && daysInPeriod >= 14) {
+                alerts.push({
+                    id: p.id,
+                    name: p.name,
+                    sku: sku || 'N/A',
+                    status: 'slow_mover',
+                    currentStock: stock,
+                    forecastedStock: p.virtual_available || stock,
+                    avgWeeklySales: 0
+                });
+            }
         }
 
         return {
             id: p.id,
             name: p.name,
-            sku: p.default_code || 'N/A',
+            sku: sku || 'N/A',
             quantity: sales.qty,
             revenue: sales.revenue,
             margin: sales.margin,
             marginPercent: sales.revenue > 0 ? (sales.margin / sales.revenue) * 100 : 0,
-            stockLevel: stock
+            stockLevel: stock,
+            forecastedStock: p.virtual_available || stock,
+            type: p.type
+        };
+    });
+
+    // 2.5 Process Scraps (Write-offs)
+    let totalScrapValue = 0;
+    const processedScraps: ScrapStat[] = scraps.map(s => {
+        const productId = s.product_id[0];
+        const product = products.find(p => p.id === productId);
+        const cost = product?.standard_price || 0;
+        const value = s.scrap_qty * cost;
+        totalScrapValue += value;
+        return {
+            productId,
+            name: s.product_id[1],
+            quantity: s.scrap_qty,
+            value,
+            date: s.date_done
         };
     });
 
@@ -533,12 +669,89 @@ export function processStockData(
         itemCount: data.count
     })).sort((a, b) => b.value - a.value);
 
+    // 4. Suggestions: Top 10 by revenue that are currently out of stock or low in this store
+    // Only suggest real products (exclude services/fitting)
+    const suggestions = [...processedProducts]
+        .filter(p => p.type === 'product' && p.stockLevel <= 2 && p.revenue > 1000)
+        .sort((a, b) => b.revenue - a.revenue)
+        .slice(0, 10);
+
     return {
         topByQuantity,
         topByRevenue,
         topByMargin,
         valuationByCategory,
-        alerts: alerts.slice(0, 20), // Limit top 20 alerts
-        totalValuation
+        totalValuation,
+        alerts: alerts.sort((a, b) => (b.avgWeeklySales || 0) - (a.avgWeeklySales || 0)).slice(0, 50),
+        scraps: processedScraps,
+        totalScrapValue,
+        suggestions
     };
+}
+
+export function processCategoryProducts(
+    targetCategoryName: string,
+    posOrders: PosOrder[],
+    posLines: PosOrderLine[],
+    categories: ProductCategory[],
+    products: Product[],
+    filterRegion?: 'North' | 'South'
+): ProductStat[] {
+    const categoryMap = new Map<number, string>();
+    categories.forEach((cat) => categoryMap.set(cat.id, cat.complete_name || cat.name));
+
+    const productMap = new Map<number, Product>();
+    products.forEach((p) => productMap.set(p.id, p));
+
+    const posLinesByOrder = new Map<number, PosOrderLine[]>();
+    posLines.forEach((line) => {
+        const orderId = Array.isArray(line.order_id) ? line.order_id[0] : 0;
+        if (!posLinesByOrder.has(orderId)) posLinesByOrder.set(orderId, []);
+        posLinesByOrder.get(orderId)!.push(line);
+    });
+
+    const productStatsMap = new Map<number, ProductStat>();
+
+    posOrders.forEach((order) => {
+        const configName = Array.isArray(order.config_id) ? order.config_id[1] : 'Unknown POS';
+        const storeRegion = getStoreRegion(configName);
+        if (filterRegion && storeRegion !== filterRegion) return;
+
+        const lines = posLinesByOrder.get(order.id) || [];
+        lines.forEach((line) => {
+            const productId = Array.isArray(line.product_id) ? line.product_id[0] : 0;
+            const product = productMap.get(productId);
+            if (!product) return;
+
+            const categoryId = Array.isArray(product.categ_id) ? product.categ_id[0] : 0;
+            const categoryName = categoryMap.get(categoryId) || 'Other';
+            const mappedCategory = mapToCategory(categoryName, product.default_code || '', product.name || '');
+
+            if (mappedCategory !== targetCategoryName) return;
+
+            if (!productStatsMap.has(productId)) {
+                productStatsMap.set(productId, {
+                    id: productId,
+                    name: product.name,
+                    sku: product.default_code || '',
+                    sales: 0,
+                    margin: 0,
+                    marginPercent: 0,
+                    quantity: 0,
+                });
+            }
+
+            const stats = productStatsMap.get(productId)!;
+            stats.sales += line.price_subtotal;
+            stats.margin += line.margin || 0;
+            stats.quantity += line.qty;
+        });
+    });
+
+    const results = Array.from(productStatsMap.values());
+    results.forEach((p) => {
+        p.marginPercent = p.sales > 0 ? (p.margin / p.sales) * 100 : 0;
+    });
+
+    return results.sort((a, b) => b.sales - a.sales);
 }

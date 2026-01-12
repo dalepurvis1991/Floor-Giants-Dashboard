@@ -3,14 +3,17 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { RefreshCw, LayoutDashboard } from 'lucide-react';
+import Image from 'next/image';
 import StatCard from '@/components/dashboard/StatCard';
 import StoreCard from '@/components/dashboard/StoreCard';
 import Leaderboard from '@/components/dashboard/Leaderboard';
 import AlertPanel from '@/components/dashboard/AlertPanel';
 import CategoryChart from '@/components/charts/CategoryChart';
 import DashboardFilters from '@/components/dashboard/DashboardFilters';
+import ProductLeaderboard from '@/components/dashboard/ProductLeaderboard';
 import OrdersModal from '@/components/modals/OrdersModal';
 import OrderDetailModal from '@/components/modals/OrderDetailModal';
+import CategoryProductsModal from '@/components/modals/CategoryProductsModal';
 import styles from './page.module.css';
 
 interface DashboardMetrics {
@@ -21,6 +24,8 @@ interface DashboardMetrics {
   totalRefunds: number;
   refundCount: number;
   averageMarginPercent: number;
+  tradeSales: number;
+  tradeSalesPercent: number;
   categoryBreakdown: {
     category: string;
     sales: number;
@@ -57,7 +62,23 @@ interface DashboardMetrics {
     discounts: number;
     orderCount: number;
   }[];
-  lowMarginAlerts: { orderId: number; orderName: string; marginPercent: number }[];
+  lowMarginAlerts: {
+    orderId: number;
+    orderName: string;
+    marginPercent: number;
+    date_order: string;
+    amount_total: number;
+    partner_id: [number, string] | false;
+  }[];
+  productStats: {
+    id: number;
+    name: string;
+    sku: string;
+    sales: number;
+    margin: number;
+    marginPercent: number;
+    quantity: number;
+  }[];
 }
 
 export default function DashboardPage() {
@@ -77,6 +98,14 @@ export default function DashboardPage() {
   // Drilldown Modal State
   const [selectedSalesperson, setSelectedSalesperson] = useState<{ id: number; name: string } | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<{ id: number; name: string } | null>(null);
+  const [showAllLowMargin, setShowAllLowMargin] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [cashReport, setCashReport] = useState<{
+    totalCashOut: number;
+    transactionCount: number;
+    breakdown: { reason: string; store: string; total: number; count: number }[];
+    recentTransactions: { id: number; date: string; amount: number; reference: string; store: string }[];
+  } | null>(null);
 
   function getToday(): string {
     return new Date().toISOString().split('T')[0];
@@ -149,7 +178,24 @@ export default function DashboardPage() {
     fetchUser();
     fetchStores();
     fetchData();
+    fetchCashReport();
   }, [fetchData]);
+
+  async function fetchCashReport() {
+    try {
+      const params = new URLSearchParams({
+        dateFrom: filters.dateFrom,
+        dateTo: filters.dateTo,
+      });
+      const res = await fetch(`/api/no-sale?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        setCashReport(data);
+      }
+    } catch (e) {
+      console.error('Failed to fetch cash report:', e);
+    }
+  }
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(value);
@@ -164,15 +210,16 @@ export default function DashboardPage() {
     <div className={styles.container}>
       <header className={styles.header}>
         <div className={styles.titleSection}>
-          <LayoutDashboard size={32} className={styles.icon} />
+          <Image src="/logo.png" alt="Floor Giants Logo" width={40} height={40} className={styles.logo} />
           <div>
-            <h1 className={styles.title}>Sales Dashboard</h1>
-            <p className={styles.subtitle}>Overview of sales performance</p>
+            <h1 className={styles.title}>Floor Giants Dashboard</h1>
+            <p className={styles.subtitle}>Sales Performance & Analytics</p>
           </div>
         </div>
 
         <nav className={styles.nav}>
           <button className={`${styles.navBtn} ${styles.active}`} onClick={() => router.push('/')}>Sales</button>
+          <button className={styles.navBtn} onClick={() => router.push('/quotes')}>Quotes</button>
           <button className={styles.navBtn} onClick={() => router.push('/stock')}>Stock</button>
         </nav>
 
@@ -262,11 +309,21 @@ export default function DashboardPage() {
               value={`${metrics.averageMarginPercent.toFixed(1)}%`}
               variant={metrics.averageMarginPercent < 40 ? 'danger' : 'default'}
             />
+            <StatCard
+              title="Trade Sales"
+              value={formatCurrency(metrics.tradeSales)}
+              subValue={`${metrics.tradeSalesPercent.toFixed(1)}% of total`}
+              variant="default"
+              helpText="Sales associated with partners identified as 'Trade' or 'Ltd'."
+            />
           </section>
 
           <section className={styles.mainContent}>
             <div className={styles.chartsSection}>
-              <CategoryChart data={metrics.categoryBreakdown} />
+              <CategoryChart
+                data={metrics.categoryBreakdown}
+                onCategoryClick={(cat) => setSelectedCategory(cat)}
+              />
             </div>
             <div className={styles.alertsSection}>
               <AlertPanel
@@ -276,6 +333,7 @@ export default function DashboardPage() {
                   marginPercent: s.marginPercent,
                 }))}
                 onOrderClick={(id, name) => setSelectedOrder({ id, name })}
+                onSeeMoreOrders={() => setShowAllLowMargin(true)}
               />
             </div>
           </section>
@@ -298,11 +356,92 @@ export default function DashboardPage() {
             </div>
           </section>
 
+          {/* Cash Out / No Sale Report Section */}
+          {cashReport && (
+            <section className={styles.cashReportSection}>
+              <h2 className={styles.sectionTitle}>Cash Out Report (Petty Cash / Banking)</h2>
+              <div className={styles.cashReportGrid}>
+                {/* Summary Card */}
+                <div className={styles.tableCard}>
+                  <h3 className="text-lg font-semibold text-slate-100 mb-4">Breakdown by Store & Reason</h3>
+                  <div className={styles.tableContainer}>
+                    <table className={styles.table}>
+                      <thead>
+                        <tr>
+                          <th>Store</th>
+                          <th>Reason</th>
+                          <th className="text-right">Count</th>
+                          <th className="text-right">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {cashReport.breakdown.map((item, idx) => (
+                          <tr key={`${item.reason}-${item.store}-${idx}`}>
+                            <td className="text-slate-300">{item.store}</td>
+                            <td>
+                              <span className={`${styles.reasonBadge} ${item.reason === 'Banking' ? styles.banking : item.reason === 'Petty Cash' ? styles.pettyCash : ''}`}>
+                                {item.reason}
+                              </span>
+                            </td>
+                            <td className="text-right">{item.count}</td>
+                            <td className="text-right font-bold">{formatCurrency(item.total)}</td>
+                          </tr>
+                        ))}
+                        <tr className={styles.totalRow}>
+                          <td className="font-bold" colSpan={2}>Total</td>
+                          <td className="text-right font-bold">{cashReport.transactionCount}</td>
+                          <td className="text-right font-bold text-amber-400">{formatCurrency(cashReport.totalCashOut)}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Recent Transactions */}
+                <div className={styles.tableCard}>
+                  <h3 className="text-lg font-semibold text-slate-100 mb-4">Recent Transactions</h3>
+                  <div className={styles.tableContainer}>
+                    <table className={styles.table}>
+                      <thead>
+                        <tr>
+                          <th>Date</th>
+                          <th>Reference</th>
+                          <th>Store</th>
+                          <th className="text-right">Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {cashReport.recentTransactions.map((tx) => (
+                          <tr key={tx.id}>
+                            <td>{new Date(tx.date).toLocaleDateString('en-GB')}</td>
+                            <td className="text-slate-300">{tx.reference}</td>
+                            <td className="text-slate-400">{tx.store}</td>
+                            <td className="text-right font-bold text-amber-400">{formatCurrency(tx.amount)}</td>
+                          </tr>
+                        ))}
+                        {cashReport.recentTransactions.length === 0 && (
+                          <tr>
+                            <td colSpan={4} className="text-center text-slate-500 py-4">No cash out transactions found</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
+
           <section className={styles.leaderboardSection}>
-            <Leaderboard
-              data={metrics.salespersonStats}
-              onSalespersonClick={(id, name) => setSelectedSalesperson({ id, name })}
-            />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <Leaderboard
+                data={metrics.salespersonStats}
+                onSalespersonClick={(id, name) => setSelectedSalesperson({ id, name })}
+              />
+              <ProductLeaderboard
+                data={metrics.productStats}
+              />
+            </div>
           </section>
 
           {/* Drilldown Modals */}
@@ -325,6 +464,34 @@ export default function DashboardPage() {
               onClose={() => setSelectedOrder(null)}
               orderId={selectedOrder.id}
               orderName={selectedOrder.name}
+            />
+          )}
+
+          {showAllLowMargin && metrics.lowMarginAlerts && (
+            <OrdersModal
+              isOpen={showAllLowMargin}
+              onClose={() => setShowAllLowMargin(false)}
+              initialOrders={metrics.lowMarginAlerts.map(a => ({
+                id: a.orderId,
+                name: a.orderName,
+                date_order: a.date_order,
+                amount_total: a.amount_total,
+                partner_id: a.partner_id
+              }))}
+              title="All Low Margin Orders (< 30%)"
+              onOrderClick={(id, name) => setSelectedOrder({ id, name })}
+            />
+          )}
+
+          {selectedCategory && (
+            <CategoryProductsModal
+              isOpen={!!selectedCategory}
+              onClose={() => setSelectedCategory(null)}
+              categoryName={selectedCategory}
+              dateFrom={filters.dateFrom}
+              dateTo={filters.dateTo}
+              storeId={selectedStore || undefined}
+              region={selectedRegion || undefined}
             />
           )}
         </>

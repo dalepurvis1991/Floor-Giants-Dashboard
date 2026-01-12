@@ -4,6 +4,7 @@ import {
     getPosOrderLines,
     getSaleOrderLines,
     getSaleOrdersByIds,
+    getMessages,
 } from '@/lib/odoo/api';
 import { getSession } from '@/lib/auth';
 
@@ -20,46 +21,59 @@ export async function GET(
 
         const credentials = { uid: session.userId, password: session.password };
         const orderId = parseInt(id);
+        const searchParams = request.nextUrl.searchParams;
+        const type = searchParams.get('type') || 'pos';
 
-        let [order, lines] = await Promise.all([
-            getPosOrderById(orderId, credentials),
-            getPosOrderLines([orderId], credentials),
-        ]);
+        let order: any;
+        let lines: any[];
+        let messages: any[] = [];
+
+        if (type === 'sale') {
+            const [orders, saleLines, msgs] = await Promise.all([
+                getSaleOrdersByIds([orderId], credentials),
+                getSaleOrderLines([orderId], credentials),
+                getMessages('sale.order', orderId, credentials)
+            ]);
+            order = orders[0];
+            lines = saleLines;
+            messages = msgs;
+        } else {
+            const [posOrder, posLines] = await Promise.all([
+                getPosOrderById(orderId, credentials),
+                getPosOrderLines([orderId], credentials),
+            ]);
+            order = posOrder;
+            lines = posLines;
+
+            // FALLBACK: If POS order has no lines, check if it's linked to a Sales Order
+            const soOrigin = (order as any)?.sale_order_origin_id;
+            if (lines.length === 0 && soOrigin && Array.isArray(soOrigin)) {
+                const soId = soOrigin[0];
+                const [soLines] = await Promise.all([
+                    getSaleOrderLines([soId], credentials)
+                ]);
+
+                if (soLines.length > 0) {
+                    lines = soLines.map((sol: any) => ({
+                        id: sol.id,
+                        order_id: [orderId, order.name],
+                        product_id: sol.product_id,
+                        qty: sol.product_uom_qty,
+                        price_unit: sol.price_unit,
+                        price_subtotal: sol.price_subtotal,
+                        price_subtotal_incl: sol.price_subtotal,
+                        discount: sol.discount,
+                        margin: 0,
+                    } as any));
+                }
+            }
+        }
 
         if (!order) {
             return NextResponse.json({ error: 'Order not found' }, { status: 404 });
         }
 
-        // Fetch products to get names if product_id only has [id, name]
-        // Actually PosOrderLine already has product_id: [number, string]
-
-        // FALLBACK: If POS order has no lines, check if it's linked to a Sales Order
-        // and fetch lines from there. This happens when a Sales Order is settled in POS.
-        const soOrigin = (order as any).sale_order_origin_id;
-        if (lines.length === 0 && soOrigin && Array.isArray(soOrigin)) {
-            const soId = soOrigin[0];
-            const [so, soLines] = await Promise.all([
-                getSaleOrdersByIds([soId], credentials),
-                getSaleOrderLines([soId], credentials),
-            ]);
-
-            if (soLines.length > 0) {
-                // Map Sale Order Lines to PosOrderLine format for the UI
-                lines = soLines.map((sol: any) => ({
-                    id: sol.id,
-                    order_id: [orderId, order.name],
-                    product_id: sol.product_id,
-                    qty: sol.product_uom_qty,
-                    price_unit: sol.price_unit,
-                    price_subtotal: sol.price_subtotal,
-                    price_subtotal_incl: sol.price_subtotal, // Approximation
-                    discount: sol.discount,
-                    margin: 0, // Margin might be missing on SO lines in this env
-                } as any));
-            }
-        }
-
-        return NextResponse.json({ order, lines });
+        return NextResponse.json({ order, lines, messages });
     } catch (error) {
         console.error('Order Detail API Error:', error);
         return NextResponse.json({ error: 'Failed to fetch order details' }, { status: 500 });

@@ -1,46 +1,26 @@
-'use client';
-
-import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import React from 'react';
 import styles from './StatCard.module.css';
+import HelpTooltip from '../ui/HelpTooltip';
 
 interface StatCardProps {
     title: string;
-    value: string;
+    value: string | number;
     subValue?: string;
-    trend?: 'up' | 'down' | 'neutral';
-    trendValue?: string;
-    variant?: 'default' | 'success' | 'warning' | 'danger';
+    variant?: 'default' | 'success' | 'warning' | 'danger' | 'secondary';
+    helpText?: string;
 }
 
-export default function StatCard({
-    title,
-    value,
-    subValue,
-    trend,
-    trendValue,
-    variant = 'default',
-}: StatCardProps) {
-    const TrendIcon = trend === 'up' ? TrendingUp : trend === 'down' ? TrendingDown : Minus;
-
+export default function StatCard({ title, value, subValue, variant = 'default', helpText }: StatCardProps) {
     return (
-        <motion.div
-            className={`${styles.card} ${styles[variant]}`}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-        >
+        <div className={`${styles.card} ${styles[variant]}`}>
             <div className={styles.header}>
-                <span className={styles.title}>{title}</span>
-                {trend && (
-                    <div className={`${styles.trend} ${styles[`trend-${trend}`]}`}>
-                        <TrendIcon size={14} />
-                        {trendValue && <span>{trendValue}</span>}
-                    </div>
-                )}
+                <h3 className={styles.title}>{title}</h3>
+                {helpText && <HelpTooltip text={helpText} />}
             </div>
-            <div className={styles.value}>{value}</div>
-            {subValue && <div className={styles.subValue}>{subValue}</div>}
-        </motion.div>
+            <div className={styles.content}>
+                <div className={styles.value}>{value}</div>
+                {subValue && <div className={styles.subValue}>{subValue}</div>}
+            </div>
+        </div>
     );
 }

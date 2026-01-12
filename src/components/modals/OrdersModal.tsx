@@ -16,12 +16,14 @@ interface Order {
 interface OrdersModalProps {
     isOpen: boolean;
     onClose: () => void;
-    salespersonId: number;
-    salespersonName: string;
-    dateFrom: string;
-    dateTo: string;
+    salespersonId?: number;
+    salespersonName?: string;
+    dateFrom?: string;
+    dateTo?: string;
     storeId?: number;
     onOrderClick: (orderId: number, orderName: string) => void;
+    initialOrders?: Order[];
+    title?: string;
 }
 
 export default function OrdersModal({
@@ -32,24 +34,29 @@ export default function OrdersModal({
     dateFrom,
     dateTo,
     storeId,
-    onOrderClick
+    onOrderClick,
+    initialOrders,
+    title
 }: OrdersModalProps) {
-    const [orders, setOrders] = useState<Order[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [orders, setOrders] = useState<Order[]>(initialOrders || []);
+    const [loading, setLoading] = useState(!initialOrders);
 
     useEffect(() => {
-        if (isOpen) {
+        if (isOpen && !initialOrders && salespersonId && dateFrom && dateTo) {
             fetchOrders();
+        } else if (initialOrders) {
+            setOrders(initialOrders);
+            setLoading(false);
         }
-    }, [isOpen, salespersonId, dateFrom, dateTo, storeId]);
+    }, [isOpen, salespersonId, dateFrom, dateTo, storeId, initialOrders]);
 
     const fetchOrders = async () => {
+        if (!salespersonId || !dateFrom || !dateTo) return;
         setLoading(true);
         try {
-            const params = new URLSearchParams({
-                dateFrom,
-                dateTo,
-            });
+            const params = new URLSearchParams();
+            params.append('dateFrom', dateFrom);
+            params.append('dateTo', dateTo);
             if (storeId) params.append('storeId', storeId.toString());
 
             const response = await fetch(`/api/salespeople/${salespersonId}/orders?${params.toString()}`);
@@ -71,7 +78,7 @@ export default function OrdersModal({
         <Modal
             isOpen={isOpen}
             onClose={onClose}
-            title={`Orders for ${salespersonName}`}
+            title={title || `Orders for ${salespersonName}`}
         >
             {loading ? (
                 <div className={styles.loading}>

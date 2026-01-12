@@ -55,6 +55,38 @@ export interface PosOrderLine {
 export interface PosConfig {
     id: number;
     name: string;
+    vat?: string;
+    note?: string;
+    message_ids?: number[];
+}
+
+export interface StockScrap {
+    id: number;
+    name: string;
+    product_id: [number, string];
+    scrap_qty: number;
+    date_done: string;
+    scrap_reason_tag_ids?: [number, string][];
+    state: string;
+}
+
+export interface StockValuationLayer {
+    id: number;
+    product_id: [number, string];
+    quantity: number;
+    unit_cost: number;
+    value: number;
+    create_date: string;
+}
+
+export interface MailMessage {
+    id: number;
+    subject: string;
+    date: string;
+    body: string;
+    author_id: [number, string] | false;
+    message_type: string;
+    subtype_id: [number, string] | false;
 }
 
 export interface ProductCategory {
@@ -73,6 +105,7 @@ export interface Product {
     standard_price?: number;
     list_price?: number;
     default_code?: string | false;
+    type?: 'consu' | 'service' | 'product';
 }
 
 export interface AccountMoveLine {
@@ -104,12 +137,14 @@ export async function getSaleOrders(
     dateTo: string,
     companyId?: number,
     userId?: number,
-    credentials?: { uid: number; password: string }
+    credentials?: { uid: number; password: string },
+    options?: { states?: string[] }
 ): Promise<SaleOrder[]> {
+    const states = options?.states || ['sale', 'done'];
     const domain: unknown[] = [
         ['date_order', '>=', dateFrom],
         ['date_order', '<=', dateTo],
-        ['state', 'in', ['sale', 'done']],
+        ['state', 'in', states],
     ];
     if (companyId) domain.push(['company_id', '=', companyId]);
     if (userId) domain.push(['user_id', '=', userId]);
@@ -163,6 +198,7 @@ export async function getSaleOrderLines(
                 'price_unit',
                 'price_subtotal',
                 'discount',
+                'margin',
             ],
             { limit: 10000 },
             credentials
@@ -191,6 +227,8 @@ export async function getSaleOrdersByIds(
         'team_id',
         'partner_id',
         'company_id',
+        'note',
+        'message_ids',
     ], {}, credentials);
 
     return orders;
@@ -213,9 +251,11 @@ export async function getProducts(
             'name',
             'categ_id',
             'qty_available',
+            'virtual_available',
             'standard_price',
             'list_price',
             'default_code',
+            'type',
         ], { limit: batchSize }, credentials);
         results.push(...batch);
     }
@@ -272,7 +312,7 @@ export async function getLowStockReport(
 export async function getPosConfigs(
     credentials?: { uid: number; password: string }
 ): Promise<PosConfig[]> {
-    return searchRead<PosConfig>('pos.config', [], ['id', 'name'], { limit: 1000 }, credentials);
+    return searchRead<PosConfig>('pos.config', [['company_id', '!=', 12]], ['id', 'name'], { limit: 1000 }, credentials);
 }
 
 export async function getPosOrders(
@@ -440,4 +480,46 @@ export async function getAccountMoveLines(
         'date',
         'parent_state',
     ], { limit: 10000 }, credentials);
+}
+
+export async function getMessages(
+    model: string,
+    resId: number,
+    credentials?: { uid: number; password: string }
+): Promise<MailMessage[]> {
+    return await searchRead<MailMessage>(
+        'mail.message',
+        [['res_id', '=', resId], ['model', '=', model]],
+        ['id', 'subject', 'date', 'body', 'author_id', 'message_type', 'subtype_id'],
+        { order: 'date desc', limit: 50 },
+        credentials
+    );
+}
+
+export async function getScraps(
+    dateFrom: string,
+    dateTo: string,
+    credentials?: { uid: number; password: string }
+): Promise<StockScrap[]> {
+    return await searchRead<StockScrap>(
+        'stock.scrap',
+        [['date_done', '>=', dateFrom], ['date_done', '<=', dateTo], ['state', '=', 'done'], ['company_id', '!=', 12]],
+        ['id', 'name', 'product_id', 'scrap_qty', 'date_done', 'state'],
+        { order: 'date_done desc', limit: 1000 },
+        credentials
+    );
+}
+
+export async function getValuationLayers(
+    productIds: number[],
+    credentials?: { uid: number; password: string }
+): Promise<StockValuationLayer[]> {
+    if (productIds.length === 0) return [];
+    return await searchRead<StockValuationLayer>(
+        'stock.valuation.layer',
+        [['product_id', 'in', productIds]],
+        ['id', 'product_id', 'quantity', 'unit_cost', 'value', 'create_date'],
+        { order: 'create_date desc', limit: 5000 },
+        credentials
+    );
 }

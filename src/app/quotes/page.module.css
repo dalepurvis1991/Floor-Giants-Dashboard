@@ -161,6 +161,48 @@
     }
 }
 
+.leaderboardSection {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 24px;
+    margin-bottom: 32px;
+}
+
+/* Specific component styles not in main */
+.clickableRow {
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.clickableRow:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.ageBadge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    background: rgba(99, 102, 241, 0.2);
+    color: #a5b4fc;
+    font-size: 12px;
+}
+
+.ageBadge.old {
+    background: rgba(244, 63, 94, 0.2);
+    color: #fda4af;
+}
+
+.customerName,
+.userName {
+    font-weight: 500;
+    color: #f8fafc;
+}
+
+.orderRef,
+.teamName {
+    font-size: 12px;
+    color: #94a3b8;
+}
+
 .tableCard {
     background: rgba(30, 41, 59, 0.7);
     backdrop-filter: blur(12px);
@@ -199,15 +241,6 @@
     color: #f8fafc;
 }
 
-.clickableRow {
-    cursor: pointer;
-    transition: background-color 0.2s;
-}
-
-.clickableRow:hover {
-    background-color: rgba(255, 255, 255, 0.05);
-}
-
 .loading {
     display: flex;
     flex-direction: column;
@@ -216,13 +249,4 @@
     gap: 24px;
     padding: 100px 0;
     color: #818cf8;
-}
-
-/* Custom for Stock */
-.tableCard {
-    background: rgba(30, 41, 59, 0.7);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 16px;
-    padding: 24px;
 }
