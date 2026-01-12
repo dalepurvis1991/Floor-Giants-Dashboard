@@ -1,0 +1,27 @@
+﻿src/components/modals/QuoteDetailModal.tsx(78,13): error TS2322: Type '{ children: Element; isOpen: boolean; onClose: () => void; title: string; size: string; }' is not assignable to type 'IntrinsicAttributes & ModalProps'.
+  Property 'size' does not exist on type 'IntrinsicAttributes & ModalProps'.
+src/lib/odoo/processor.ts(530,9): error TS2322: Type '{ orderId: number; orderName: string; marginPercent: number; saleValue: number; isTrade: boolean; }[]' is not assignable to type '{ orderId: number; orderName: string; marginPercent: number; date_order: string; amount_total: number; partner_id: false | [number, string]; }[]'.
+  Type '{ orderId: number; orderName: string; marginPercent: number; saleValue: number; isTrade: boolean; }' is missing the following properties from type '{ orderId: number; orderName: string; marginPercent: number; date_order: string; amount_total: number; partner_id: false | [number, string]; }': date_order, amount_total, partner_id
+src/lib/odoo/processor.ts(530,68): error TS2339: Property 'date_order' does not exist on type '{ orderId: number; orderName: string; marginPercent: number; saleValue: number; isTrade: boolean; }'.
+src/lib/odoo/processor.ts(530,103): error TS2339: Property 'date_order' does not exist on type '{ orderId: number; orderName: string; marginPercent: number; saleValue: number; isTrade: boolean; }'.
+src/lib/odoo/processor.ts(547,13): error TS2304: Cannot find name 'StockScrap'.
+src/lib/odoo/processor.ts(693,9): error TS2322: Type '{ id: number; name: string; sku: string; quantity: number; revenue: number; margin: number; marginPercent: number; stockLevel: number; forecastedStock: number; type: "consu" | "service" | "product" | undefined; }[]' is not assignable to type 'ProductStockStat[]'.
+  Type '{ id: number; name: string; sku: string; quantity: number; revenue: number; margin: number; marginPercent: number; stockLevel: number; forecastedStock: number; type: "consu" | "service" | "product" | undefined; }' is not assignable to type 'ProductStockStat'.
+    Types of property 'type' are incompatible.
+      Type 'string | undefined' is not assignable to type 'string'.
+        Type 'undefined' is not assignable to type 'string'.
+src/lib/odoo/processor.ts(694,9): error TS2322: Type '{ id: number; name: string; sku: string; quantity: number; revenue: number; margin: number; marginPercent: number; stockLevel: number; forecastedStock: number; type: "consu" | "service" | "product" | undefined; }[]' is not assignable to type 'ProductStockStat[]'.
+  Type '{ id: number; name: string; sku: string; quantity: number; revenue: number; margin: number; marginPercent: number; stockLevel: number; forecastedStock: number; type: "consu" | "service" | "product" | undefined; }' is not assignable to type 'ProductStockStat'.
+    Types of property 'type' are incompatible.
+      Type 'string | undefined' is not assignable to type 'string'.
+        Type 'undefined' is not assignable to type 'string'.
+src/lib/odoo/processor.ts(695,9): error TS2322: Type '{ id: number; name: string; sku: string; quantity: number; revenue: number; margin: number; marginPercent: number; stockLevel: number; forecastedStock: number; type: "consu" | "service" | "product" | undefined; }[]' is not assignable to type 'ProductStockStat[]'.
+  Type '{ id: number; name: string; sku: string; quantity: number; revenue: number; margin: number; marginPercent: number; stockLevel: number; forecastedStock: number; type: "consu" | "service" | "product" | undefined; }' is not assignable to type 'ProductStockStat'.
+    Types of property 'type' are incompatible.
+      Type 'string | undefined' is not assignable to type 'string'.
+        Type 'undefined' is not assignable to type 'string'.
+src/lib/odoo/processor.ts(701,9): error TS2322: Type '{ id: number; name: string; sku: string; quantity: number; revenue: number; margin: number; marginPercent: number; stockLevel: number; forecastedStock: number; type: "consu" | "service" | "product" | undefined; }[]' is not assignable to type 'ProductStockStat[]'.
+  Type '{ id: number; name: string; sku: string; quantity: number; revenue: number; margin: number; marginPercent: number; stockLevel: number; forecastedStock: number; type: "consu" | "service" | "product" | undefined; }' is not assignable to type 'ProductStockStat'.
+    Types of property 'type' are incompatible.
+      Type 'string | undefined' is not assignable to type 'string'.
+        Type 'undefined' is not assignable to type 'string'.

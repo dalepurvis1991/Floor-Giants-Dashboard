@@ -13,6 +13,8 @@ interface SalespersonData {
     marginPercent: number;
     discounts: number;
     orderCount: number;
+    atv?: number;
+    conversionRate?: number;
 }
 
 interface LeaderboardProps {
@@ -20,7 +22,7 @@ interface LeaderboardProps {
     onSalespersonClick?: (id: number, name: string) => void;
 }
 
-type SortKey = 'totalSales' | 'marginPercent' | 'discounts';
+type SortKey = 'totalSales' | 'marginPercent' | 'discounts' | 'conversionRate' | 'atv' | 'valueConverted';
 
 export default function Leaderboard({ data, onSalespersonClick }: LeaderboardProps) {
     const [sortBy, setSortBy] = useState<SortKey>('totalSales');
@@ -52,13 +54,16 @@ export default function Leaderboard({ data, onSalespersonClick }: LeaderboardPro
                     <HelpTooltip text="Ranking of salespeople based on total sales value (Ex VAT)." />
                 </div>
                 <div className={styles.sortButtons}>
-                    {(['totalSales', 'marginPercent', 'discounts'] as SortKey[]).map((key) => (
+                    {(['totalSales', 'conversionRate', 'atv', 'marginPercent', 'discounts'] as SortKey[]).map((key) => (
                         <button
                             key={key}
                             className={`${styles.sortButton} ${sortBy === key ? styles.active : ''}`}
                             onClick={() => handleSort(key)}
                         >
-                            {key === 'totalSales' ? 'Sales' : key === 'marginPercent' ? 'Margin' : 'Discounts'}
+                            {key === 'totalSales' ? 'Sales' :
+                                key === 'conversionRate' ? 'CR%' :
+                                    key === 'atv' ? 'ATV' :
+                                        key === 'marginPercent' ? 'Margin' : 'Discounts'}
                             <ArrowUpDown size={12} />
                         </button>
                     ))}
@@ -90,6 +95,14 @@ export default function Leaderboard({ data, onSalespersonClick }: LeaderboardPro
                                 <span className={styles.statLabel}>Sales</span>
                             </div>
                             <div className={styles.stat}>
+                                <span className={styles.statValue}>{person.conversionRate?.toFixed(1) || 0}%</span>
+                                <span className={styles.statLabel}>CR%</span>
+                            </div>
+                            <div className={styles.stat}>
+                                <span className={styles.statValue}>{formatCurrency(person.atv || 0)}</span>
+                                <span className={styles.statLabel}>ATV</span>
+                            </div>
+                            <div className={styles.stat}>
                                 <span className={`${styles.statValue} ${person.marginPercent < 30 ? styles.danger : ''}`}>
                                     {person.marginPercent.toFixed(1)}%
                                 </span>
@@ -97,42 +110,42 @@ export default function Leaderboard({ data, onSalespersonClick }: LeaderboardPro
                             </div>
                             <div className={styles.stat}>
                                 <span className={styles.statValue}>{formatCurrency(person.discounts)}</span>
-                                <span className={styles.statLabel}>Discounts</span>
+                                <span className={styles.statLabel}>Disc</span>
                             </div>
-
-
                         </div>
                     </motion.div>
                 ))}
             </div>
 
-            {data.length > 10 && (
-                <button
-                    className={styles.showMoreBtn}
-                    onClick={() => setShowAll(!showAll)}
-                    style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '8px',
-                        width: '100%',
-                        padding: '12px',
-                        background: 'transparent',
-                        borderTop: '1px solid rgba(255,255,255,0.1)',
-                        color: '#94a3b8',
-                        cursor: 'pointer',
-                        fontSize: '14px',
-                        fontWeight: 500,
-                        transition: 'all 0.2s'
-                    }}
-                >
-                    {showAll ? (
-                        <>Show Less <ChevronUp size={16} /></>
-                    ) : (
-                        <>Show All ({data.length}) <ChevronDown size={16} /></>
-                    )}
-                </button>
-            )}
-        </div>
+            {
+                data.length > 10 && (
+                    <button
+                        className={styles.showMoreBtn}
+                        onClick={() => setShowAll(!showAll)}
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '8px',
+                            width: '100%',
+                            padding: '12px',
+                            background: 'transparent',
+                            borderTop: '1px solid rgba(255,255,255,0.1)',
+                            color: '#94a3b8',
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                            fontWeight: 500,
+                            transition: 'all 0.2s'
+                        }}
+                    >
+                        {showAll ? (
+                            <>Show Less <ChevronUp size={16} /></>
+                        ) : (
+                            <>Show All ({data.length}) <ChevronDown size={16} /></>
+                        )}
+                    </button>
+                )
+            }
+        </div >
     );
 }

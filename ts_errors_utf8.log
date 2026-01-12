@@ -1,0 +1,13 @@
+﻿src/app/api/no-sale/route.ts(91,45): error TS2339: Property 'company_id' does not exist on type '{ id: number; name: string; amount: number; date: string; payment_ref: string; ref: string; journal_id: false | [number, string]; }'.
+src/app/api/no-sale/route.ts(91,64): error TS2339: Property 'company_id' does not exist on type '{ id: number; name: string; amount: number; date: string; payment_ref: string; ref: string; journal_id: false | [number, string]; }'.
+src/app/api/no-sale/route.ts(136,41): error TS2339: Property 'company_id' does not exist on type '{ id: number; name: string; amount: number; date: string; payment_ref: string; ref: string; journal_id: false | [number, string]; }'.
+src/app/api/no-sale/route.ts(136,60): error TS2339: Property 'company_id' does not exist on type '{ id: number; name: string; amount: number; date: string; payment_ref: string; ref: string; journal_id: false | [number, string]; }'.
+src/app/page.tsx(321,30): error TS2339: Property 'sampleCount' does not exist on type 'DashboardMetrics'.
+src/app/page.tsx(354,31): error TS2339: Property 'companyName' does not exist on type '{ id: number; name: string; totalSales: number; margin: number; marginPercent: number; discounts: number; refundCount: number; refundValue: number; alertLevel: "ok" | "warning" | "critical"; region: "Other" | ... 1 more ... | "South"; }'.
+src/app/page.tsx(390,77): error TS2339: Property 'companyName' does not exist on type '{ id: number; name: string; totalSales: number; margin: number; marginPercent: number; discounts: number; refundCount: number; refundValue: number; alertLevel: "ok" | "warning" | "critical"; region: "Other" | ... 1 more ... | "South"; }'.
+src/components/dashboard/Leaderboard.tsx(44,17): error TS7053: Element implicitly has an 'any' type because expression of type 'SortKey' can't be used to index type 'SalespersonData'.
+  Property 'conversionRate' does not exist on type 'SalespersonData'.
+src/components/dashboard/Leaderboard.tsx(44,29): error TS7053: Element implicitly has an 'any' type because expression of type 'SortKey' can't be used to index type 'SalespersonData'.
+  Property 'conversionRate' does not exist on type 'SalespersonData'.
+src/components/dashboard/Leaderboard.tsx(96,76): error TS2339: Property 'conversionRate' does not exist on type 'SalespersonData'.
+src/components/dashboard/Leaderboard.tsx(100,91): error TS2339: Property 'atv' does not exist on type 'SalespersonData'.

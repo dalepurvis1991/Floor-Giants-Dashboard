@@ -9,6 +9,8 @@ export interface CashWithdrawal {
     reference: string;
     reason: string;
     store: string;
+    company: string;
+    reason_detail: string;
 }
 
 export async function GET(request: NextRequest) {
@@ -42,7 +44,7 @@ export async function GET(request: NextRequest) {
                 ['date', '>=', dateFrom],
                 ['date', '<=', dateTo],
             ],
-            ['id', 'name', 'amount', 'date', 'payment_ref', 'ref', 'journal_id'],
+            ['id', 'name', 'amount', 'date', 'payment_ref', 'ref', 'journal_id', 'company_id', 'narration'],
             { order: 'date desc', limit: 500 },
             credentials
         );
@@ -57,7 +59,9 @@ export async function GET(request: NextRequest) {
         };
 
         cashOuts.forEach((item) => {
-            const reference = (item.name || item.payment_ref || item.ref || '').toLowerCase();
+            const rawRef = (item.name || item.payment_ref || item.ref || '');
+            const narration = (item as any).narration || '';
+            const reference = (rawRef + ' ' + narration).toLowerCase();
             const amount = Math.abs(item.amount);
             const store = Array.isArray(item.journal_id) ? item.journal_id[1] : 'Unknown';
 
@@ -82,9 +86,11 @@ export async function GET(request: NextRequest) {
                 id: item.id,
                 date: item.date,
                 amount: amount,
-                reference: item.name || item.payment_ref || item.ref || 'No reference',
+                reference: (item.name || item.payment_ref || item.ref || '') + ((item as any).narration ? ` - ${(item as any).narration}` : ''),
                 reason: category,
                 store: store,
+                company: Array.isArray((item as any).company_id) ? (item as any).company_id[1] : 'Unknown',
+                reason_detail: (item as any).narration || item.name || item.payment_ref || item.ref || '',
             });
         });
 
@@ -127,8 +133,10 @@ export async function GET(request: NextRequest) {
             id: item.id,
             date: item.date,
             amount: Math.abs(item.amount),
-            reference: item.name || item.payment_ref || item.ref || 'No reference',
+            reference: (item as any).narration || (item.name || item.payment_ref || item.ref || '') + ((item as any).narration ? ` - ${(item as any).narration}` : ''),
             store: Array.isArray(item.journal_id) ? item.journal_id[1] : 'Unknown',
+            company: Array.isArray((item as any).company_id) ? (item as any).company_id[1] : 'Unknown',
+            reason_detail: (item as any).narration || '',
         }));
 
         return NextResponse.json({

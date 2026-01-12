@@ -41,6 +41,7 @@ export default function QuotesPage() {
     const [selectedStore, setSelectedStore] = useState<string>('');
     const [selectedRegion, setSelectedRegion] = useState<string>('');
     const [selectedQuote, setSelectedQuote] = useState<{ id: number; name: string } | null>(null);
+    const [selectedDrilldown, setSelectedDrilldown] = useState<{ type: string; value: string; title?: string } | null>(null);
 
     function getToday(): string {
         return new Date().toISOString().split('T')[0];
@@ -229,7 +230,16 @@ export default function QuotesPage() {
                                                 nameKey="name"
                                             >
                                                 {data.productMix.map((entry, index) => (
-                                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                                    <Cell
+                                                        key={`cell-${index}`}
+                                                        fill={COLORS[index % COLORS.length]}
+                                                        onClick={() => setSelectedDrilldown({
+                                                            type: 'category',
+                                                            value: entry.name,
+                                                            title: `Quotes for Category: ${entry.name}`
+                                                        })}
+                                                        className="cursor-pointer"
+                                                    />
                                                 ))}
                                             </Pie>
                                             <RechartsTooltip
@@ -261,13 +271,22 @@ export default function QuotesPage() {
                                                 cursor={{ fill: 'rgba(255,255,255,0.05)' }}
                                                 formatter={(value) => formatCurrency(value as number)}
                                             />
-                                            <Bar dataKey="value" fill="#6366f1" radius={[4, 4, 0, 0]}>
+                                            <Bar dataKey="value" radius={[4, 4, 0, 0]}>
                                                 {data.agedQuotes.map((entry, index) => (
-                                                    <Cell key={`cell-${index}`} fill={
-                                                        index === 3 ? '#f43f5e' :
-                                                            index === 2 ? '#f59e0b' :
-                                                                '#6366f1'
-                                                    } />
+                                                    <Cell
+                                                        key={`cell-${index}`}
+                                                        fill={
+                                                            index === 3 ? '#f43f5e' :
+                                                                index === 2 ? '#f59e0b' :
+                                                                    '#6366f1'
+                                                        }
+                                                        onClick={() => setSelectedDrilldown({
+                                                            type: 'age',
+                                                            value: entry.name,
+                                                            title: `Quotes by Age: ${entry.name}`
+                                                        })}
+                                                        className="cursor-pointer"
+                                                    />
                                                 ))}
                                             </Bar>
                                         </BarChart>
@@ -295,7 +314,18 @@ export default function QuotesPage() {
                                                 contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}
                                                 formatter={(value) => formatCurrency(value as number)}
                                             />
-                                            <Bar dataKey="value" fill="#10b981" radius={[0, 4, 4, 0]} barSize={20} />
+                                            <Bar
+                                                dataKey="value"
+                                                fill="#10b981"
+                                                radius={[0, 4, 4, 0]}
+                                                barSize={20}
+                                                onClick={(entry) => setSelectedDrilldown({
+                                                    type: 'salesperson',
+                                                    value: (entry as any).name,
+                                                    title: `Quotes for Salesperson: ${(entry as any).name}`
+                                                })}
+                                                className="cursor-pointer"
+                                            />
                                         </BarChart>
                                     </ResponsiveContainer>
                                 }
@@ -320,7 +350,18 @@ export default function QuotesPage() {
                                                 contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}
                                                 formatter={(value) => formatCurrency(value as number)}
                                             />
-                                            <Bar dataKey="value" fill="#8b5cf6" radius={[0, 4, 4, 0]} barSize={20} />
+                                            <Bar
+                                                dataKey="value"
+                                                fill="#8b5cf6"
+                                                radius={[0, 4, 4, 0]}
+                                                barSize={20}
+                                                onClick={(entry) => setSelectedDrilldown({
+                                                    type: 'store',
+                                                    value: (entry as any).name,
+                                                    title: `Quotes for Store: ${(entry as any).name}`
+                                                })}
+                                                className="cursor-pointer"
+                                            />
                                         </BarChart>
                                     </ResponsiveContainer>
                                 }
@@ -373,6 +414,7 @@ export default function QuotesPage() {
                                     <thead>
                                         <tr>
                                             <th>Customer</th>
+                                            <th>Company</th>
                                             <th>Owner</th>
                                             <th>Store</th>
                                             <th>Age</th>
@@ -394,6 +436,9 @@ export default function QuotesPage() {
                                                         <div className={styles.orderRef}>{quote.name}</div>
                                                     </td>
                                                     <td>
+                                                        <div className="text-slate-300 text-sm">{Array.isArray(quote.company_id) ? quote.company_id[1] : '-'}</div>
+                                                    </td>
+                                                    <td>
                                                         <div className={styles.userName}>{quote.user_id ? quote.user_id[1] : 'Unassigned'}</div>
                                                     </td>
                                                     <td>
@@ -409,6 +454,11 @@ export default function QuotesPage() {
                                                     </td>
                                                 </tr>
                                             ))}
+                                        {data.quotes.length === 0 && (
+                                            <tr>
+                                                <td colSpan={7} className="text-center text-slate-500 py-4">No recent opportunities found</td>
+                                            </tr>
+                                        )}
                                     </tbody>
                                 </table>
                             </div>
@@ -421,6 +471,20 @@ export default function QuotesPage() {
                         quoteId={selectedQuote?.id || 0}
                         quoteName={selectedQuote?.name || ''}
                     />
+
+                    {selectedDrilldown && (
+                        <QuotesModal
+                            isOpen={!!selectedDrilldown}
+                            onClose={() => setSelectedDrilldown(null)}
+                            type={selectedDrilldown.type}
+                            value={selectedDrilldown.value}
+                            title={selectedDrilldown.title}
+                            dateFrom={filters.dateFrom}
+                            dateTo={filters.dateTo}
+                            storeId={selectedStore || undefined}
+                            onQuoteClick={(id, name) => setSelectedQuote({ id, name })}
+                        />
+                    )}
                 </>
             )}
         </div>

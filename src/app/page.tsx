@@ -41,10 +41,14 @@ interface DashboardMetrics {
     marginPercent: number;
     discounts: number;
     orderCount: number;
+    atv?: number;
+    conversionRate?: number;
   }[];
   storeStats: {
     id: number;
     name: string;
+    companyId?: number;
+    companyName?: string;
     totalSales: number;
     margin: number;
     marginPercent: number;
@@ -79,6 +83,7 @@ interface DashboardMetrics {
     marginPercent: number;
     quantity: number;
   }[];
+  sampleCount: number;
 }
 
 export default function DashboardPage() {
@@ -104,7 +109,7 @@ export default function DashboardPage() {
     totalCashOut: number;
     transactionCount: number;
     breakdown: { reason: string; store: string; total: number; count: number }[];
-    recentTransactions: { id: number; date: string; amount: number; reference: string; store: string }[];
+    recentTransactions: { id: number; date: string; amount: number; reference: string; store: string; company: string }[];
   } | null>(null);
 
   function getToday(): string {
@@ -316,6 +321,13 @@ export default function DashboardPage() {
               variant="default"
               helpText="Sales associated with partners identified as 'Trade' or 'Ltd'."
             />
+            <StatCard
+              title="Active Samples"
+              value={metrics.sampleCount}
+              subValue="Sold & unreturned"
+              variant="secondary"
+              helpText="Total quantity of [sample] products sold but not yet offset by a return."
+            />
           </section>
 
           <section className={styles.mainContent}>
@@ -339,12 +351,12 @@ export default function DashboardPage() {
           </section>
 
           <section className={styles.storeSection}>
-            <h2 className={styles.sectionTitle}>Store Performance (Ex VAT)</h2>
+            <h2 className={styles.sectionTitle}>Company Performance (Ex VAT)</h2>
             <div className={styles.storeGrid}>
               {metrics.storeStats.map((store) => (
                 <StoreCard
                   key={store.id}
-                  name={store.name}
+                  name={store.companyName || store.name}
                   totalSales={store.totalSales}
                   marginPercent={store.marginPercent}
                   discounts={store.discounts}
@@ -353,6 +365,46 @@ export default function DashboardPage() {
                   alertLevel={store.alertLevel}
                 />
               ))}
+            </div>
+          </section>
+
+
+
+          <section className={styles.leaderboardSection}>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <Leaderboard
+                data={metrics.salespersonStats}
+                onSalespersonClick={(id, name) => setSelectedSalesperson({ id, name })}
+              />
+              <div className={styles.tableCard}>
+                <div style={{ display: 'flex', alignItems: 'center', padding: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                  <h2 className={styles.sectionTitle} style={{ margin: 0 }}>Company Leadership</h2>
+                </div>
+                <div className={styles.tableContainer} style={{ padding: '0 1rem 1rem' }}>
+                  <table className={styles.table}>
+                    <thead>
+                      <tr>
+                        <th>Company</th>
+                        <th className="text-right">Sales</th>
+                        <th className="text-right">Margin</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {metrics.storeStats.map((store) => (
+                        <tr key={store.id}>
+                          <td className="text-slate-300 font-medium">{store.companyName || store.name}</td>
+                          <td className="text-right">{formatCurrency(store.totalSales)}</td>
+                          <td className="text-right">
+                            <span className={store.marginPercent < 30 ? 'text-rose-400' : 'text-emerald-400'}>
+                              {store.marginPercent.toFixed(1)}%
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           </section>
 
@@ -368,6 +420,7 @@ export default function DashboardPage() {
                     <table className={styles.table}>
                       <thead>
                         <tr>
+                          <th>Company</th>
                           <th>Store</th>
                           <th>Reason</th>
                           <th className="text-right">Count</th>
@@ -377,6 +430,7 @@ export default function DashboardPage() {
                       <tbody>
                         {cashReport.breakdown.map((item, idx) => (
                           <tr key={`${item.reason}-${item.store}-${idx}`}>
+                            <td className="text-slate-400 text-sm">{item.company}</td>
                             <td className="text-slate-300">{item.store}</td>
                             <td>
                               <span className={`${styles.reasonBadge} ${item.reason === 'Banking' ? styles.banking : item.reason === 'Petty Cash' ? styles.pettyCash : ''}`}>
@@ -388,7 +442,7 @@ export default function DashboardPage() {
                           </tr>
                         ))}
                         <tr className={styles.totalRow}>
-                          <td className="font-bold" colSpan={2}>Total</td>
+                          <td className="font-bold" colSpan={3}>Total</td>
                           <td className="text-right font-bold">{cashReport.transactionCount}</td>
                           <td className="text-right font-bold text-amber-400">{formatCurrency(cashReport.totalCashOut)}</td>
                         </tr>
@@ -405,7 +459,8 @@ export default function DashboardPage() {
                       <thead>
                         <tr>
                           <th>Date</th>
-                          <th>Reference</th>
+                          <th>Company</th>
+                          <th>Description/Reason</th>
                           <th>Store</th>
                           <th className="text-right">Amount</th>
                         </tr>
@@ -414,14 +469,15 @@ export default function DashboardPage() {
                         {cashReport.recentTransactions.map((tx) => (
                           <tr key={tx.id}>
                             <td>{new Date(tx.date).toLocaleDateString('en-GB')}</td>
-                            <td className="text-slate-300">{tx.reference}</td>
-                            <td className="text-slate-400">{tx.store}</td>
+                            <td className="text-slate-300 text-sm">{tx.company}</td>
+                            <td className="text-slate-400 text-xs">{tx.reference}</td>
+                            <td className="text-slate-400 text-sm">{tx.store}</td>
                             <td className="text-right font-bold text-amber-400">{formatCurrency(tx.amount)}</td>
                           </tr>
                         ))}
                         {cashReport.recentTransactions.length === 0 && (
                           <tr>
-                            <td colSpan={4} className="text-center text-slate-500 py-4">No cash out transactions found</td>
+                            <td colSpan={5} className="text-center text-slate-500 py-4">No cash out transactions found</td>
                           </tr>
                         )}
                       </tbody>
@@ -431,18 +487,6 @@ export default function DashboardPage() {
               </div>
             </section>
           )}
-
-          <section className={styles.leaderboardSection}>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <Leaderboard
-                data={metrics.salespersonStats}
-                onSalespersonClick={(id, name) => setSelectedSalesperson({ id, name })}
-              />
-              <ProductLeaderboard
-                data={metrics.productStats}
-              />
-            </div>
-          </section>
 
           {/* Drilldown Modals */}
           {selectedSalesperson && (

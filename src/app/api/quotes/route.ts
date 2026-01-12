@@ -69,11 +69,14 @@ export async function GET(request: NextRequest) {
         let totalActiveSamples = 0;
 
         // Process lines to count net samples (delivered - returned)
+        // We look at all lines in the fetched orders. 
+        // NOTE: For true "Active" samples, we might need a wider window, 
+        // but for now we sum net quantity in the selected period.
         lines.forEach(l => {
             if (!Array.isArray(l.product_id)) return;
             const prod = productInfoMap.get(l.product_id[0]);
             if (prod && isSample(prod.sku, prod.name)) {
-                // Use quantity to handle returns (negative quantities)
+                // Sum quantities to handle returns within the period
                 totalActiveSamples += l.product_uom_qty || 0;
             }
         });

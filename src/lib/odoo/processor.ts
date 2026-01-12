@@ -27,11 +27,16 @@ export interface SalespersonStats {
     marginPercent: number;
     discounts: number;
     orderCount: number;
+    atv: number;
+    conversionRate?: number;
+    valueConverted?: number;
 }
 
 export interface StoreStats {
     id: number;
     name: string;
+    companyId?: number;
+    companyName?: string;
     totalSales: number;
     margin: number;
     marginPercent: number;
@@ -65,6 +70,7 @@ export interface DashboardMetrics {
     salespersonStats: SalespersonStats[];
     storeStats: StoreStats[];
     regionalStats: RegionalStats[];
+    sampleCount: number;
     lowMarginAlerts: {
         orderId: number;
         orderName: string;
@@ -359,6 +365,9 @@ export function processDashboardData(
                 marginPercent: 0,
                 discounts: 0,
                 orderCount: 0,
+                atv: 0,
+                conversionRate: 0,
+                valueConverted: 0
             });
         }
         const sp = salespersonMap.get(userId)!;
@@ -366,11 +375,17 @@ export function processDashboardData(
         sp.margin += orderMarginBuilt;
         sp.discounts += orderDiscounts;
         sp.orderCount += 1;
+        sp.atv = sp.orderCount > 0 ? sp.totalSales / sp.orderCount : 0;
+        sp.valueConverted = sp.totalSales; // For main dashboard, converted value = actual sales
 
         if (!storeMap.has(configId)) {
+            const companyId = Array.isArray(order.company_id) ? order.company_id[0] : undefined;
+            const companyName = Array.isArray(order.company_id) ? order.company_id[1] : undefined;
             storeMap.set(configId, {
                 id: configId,
                 name: configName,
+                companyId,
+                companyName,
                 totalSales: 0,
                 margin: 0,
                 marginPercent: 0,
@@ -437,6 +452,33 @@ export function processDashboardData(
             pStat.quantity += line.qty;
         }
     });
+
+    // --- CONVERSION RATE CALCULATION ---
+    // If we have saleOrders (quotes) and posOrders (converted)
+    // For each salesperson, we can estimate a conversion rate
+    // Note: This is an estimate based on the data passed to this function.
+    const spOpportunities = new Map<number, { quotes: number; sales: number }>();
+
+    // Count Quotes (saleOrders in draft/sent usually, but here and in processor it depends on what's passed)
+    // Assuming saleOrders passed here are quotes.
+    saleOrders.forEach(q => {
+        const uid = Array.isArray(q.user_id) ? q.user_id[0] : 0;
+        if (!uid) return;
+        const current = spOpportunities.get(uid) || { quotes: 0, sales: 0 };
+        current.quotes += 1;
+        spOpportunities.set(uid, current);
+    });
+
+    // Count Sales (Already in salespersonMap as orderCount)
+    salespersonMap.forEach((sp, uid) => {
+        const current = spOpportunities.get(uid) || { quotes: 0, sales: 0 };
+        current.sales = sp.orderCount;
+        spOpportunities.set(uid, current);
+
+        const opps = current.quotes + current.sales;
+        sp.conversionRate = opps > 0 ? (current.sales / opps) * 100 : 0;
+    });
+
 
     // Calculate percentages and alerts
     const totalMarginPercent = totalSales > 0 ? (totalMargin / totalSales) * 100 : 0;
@@ -519,6 +561,18 @@ export function processDashboardData(
         }
     });
 
+    // --- ACTIVE SAMPLES CALCULATION ---
+    let sampleCount = 0;
+    posLines.forEach(line => {
+        const productId = Array.isArray(line.product_id) ? line.product_id[0] : 0;
+        const sku = productSkuMap.get(productId) || '';
+        const name = productNameMap.get(productId) || '';
+        if (isSample(sku, name)) {
+            // Sum quantities to handle returns
+            sampleCount += (line.qty || 0);
+        }
+    });
+
     return {
         totalSales,
         totalMargin,
@@ -533,6 +587,7 @@ export function processDashboardData(
         salespersonStats: Array.from(salespersonMap.values()).sort((a, b) => b.totalSales - a.totalSales),
         storeStats: Array.from(storeMap.values()).sort((a, b) => b.totalSales - a.totalSales),
         regionalStats: Array.from(regionalMap.values()),
+        sampleCount: Math.max(0, sampleCount), // Ensure not negative
         lowMarginAlerts: lowMarginAlerts.sort((a, b) => new Date(b.date_order).getTime() - new Date(a.date_order).getTime()),
         productStats: Array.from(productStatsMap.values())
             .filter(p => p.sales > 0 || p.quantity > 0)
