@@ -6,6 +6,7 @@ import {
     PosOrderLine,
     ProductCategory,
     Product,
+    StockScrap,
 } from './api';
 import { isSample, mapToCategory } from './categorizer';
 
@@ -71,6 +72,8 @@ export interface DashboardMetrics {
         date_order: string;
         amount_total: number;
         partner_id: [number, string] | false;
+        saleValue?: number;
+        isTrade?: boolean;
     }[];
     productStats: ProductStat[];
 }
@@ -108,7 +111,7 @@ export interface ProductStockStat {
     marginPercent: number;
     stockLevel: number;
     forecastedStock: number;
-    type: string;
+    type?: string;
 }
 
 export interface StockValue {
@@ -471,7 +474,7 @@ export function processDashboardData(
     // but for now we keep it consistent.
 
     // Low margin alerts (POS only)
-    const lowMarginAlerts: { orderId: number; orderName: string; marginPercent: number; saleValue: number; isTrade: boolean }[] = [];
+    const lowMarginAlerts: DashboardMetrics['lowMarginAlerts'] = [];
     posOrders.forEach((order) => {
         const configName = Array.isArray(order.config_id) ? order.config_id[1] : '';
         if (filterRegion && getStoreRegion(configName) !== filterRegion) return;
@@ -507,6 +510,9 @@ export function processDashboardData(
                 orderId: order.id,
                 orderName: order.name,
                 marginPercent,
+                date_order: order.date_order,
+                amount_total: order.amount_total,
+                partner_id: order.partner_id,
                 saleValue: orderExVat,
                 isTrade
             });

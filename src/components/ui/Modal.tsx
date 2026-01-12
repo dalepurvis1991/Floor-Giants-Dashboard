@@ -9,9 +9,10 @@ interface ModalProps {
     onClose: () => void;
     title: string;
     children: React.ReactNode;
+    size?: 'small' | 'medium' | 'large';
 }
 
-export default function Modal({ isOpen, onClose, title, children }: ModalProps) {
+export default function Modal({ isOpen, onClose, title, children, size = 'medium' }: ModalProps) {
     return (
         <AnimatePresence>
             {isOpen && (
@@ -24,7 +25,7 @@ export default function Modal({ isOpen, onClose, title, children }: ModalProps) 
                         onClick={onClose}
                     />
                     <motion.div
-                        className={styles.content}
+                        className={`${styles.content} ${styles[size]}`}
                         initial={{ opacity: 0, scale: 0.95, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 20 }}
