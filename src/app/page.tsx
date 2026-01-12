@@ -108,7 +108,7 @@ export default function DashboardPage() {
   const [cashReport, setCashReport] = useState<{
     totalCashOut: number;
     transactionCount: number;
-    breakdown: { reason: string; store: string; total: number; count: number }[];
+    breakdown: { company: string; reason: string; store: string; total: number; count: number }[];
     recentTransactions: { id: number; date: string; amount: number; reference: string; store: string; company: string }[];
   } | null>(null);
 
