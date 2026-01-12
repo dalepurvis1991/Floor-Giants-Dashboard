@@ -237,7 +237,7 @@ export default function StockPage() {
                                     </Pie>
                                     <RechartsTooltip
                                         contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}
-                                        formatter={(value: number) => formatCurrency(value)}
+                                        formatter={(value) => formatCurrency(value as number)}
                                     />
                                     <Legend verticalAlign="bottom" height={36} />
                                 </PieChart>

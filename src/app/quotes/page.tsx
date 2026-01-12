@@ -234,7 +234,7 @@ export default function QuotesPage() {
                                             </Pie>
                                             <RechartsTooltip
                                                 contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}
-                                                formatter={(value: number) => formatCurrency(value)}
+                                                formatter={(value) => formatCurrency(value as number)}
                                             />
                                             <Legend verticalAlign="bottom" height={36} />
                                         </PieChart>
@@ -259,7 +259,7 @@ export default function QuotesPage() {
                                             <RechartsTooltip
                                                 contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}
                                                 cursor={{ fill: 'rgba(255,255,255,0.05)' }}
-                                                formatter={(value: number) => formatCurrency(value)}
+                                                formatter={(value) => formatCurrency(value as number)}
                                             />
                                             <Bar dataKey="value" fill="#6366f1" radius={[4, 4, 0, 0]}>
                                                 {data.agedQuotes.map((entry, index) => (
@@ -293,7 +293,7 @@ export default function QuotesPage() {
                                             <YAxis dataKey="name" type="category" width={100} stroke="#666" tick={{ fill: '#999', fontSize: 11 }} />
                                             <RechartsTooltip
                                                 contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}
-                                                formatter={(value: number) => formatCurrency(value)}
+                                                formatter={(value) => formatCurrency(value as number)}
                                             />
                                             <Bar dataKey="value" fill="#10b981" radius={[0, 4, 4, 0]} barSize={20} />
                                         </BarChart>
@@ -318,7 +318,7 @@ export default function QuotesPage() {
                                             <YAxis dataKey="name" type="category" width={100} stroke="#666" tick={{ fill: '#999', fontSize: 11 }} />
                                             <RechartsTooltip
                                                 contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}
-                                                formatter={(value: number) => formatCurrency(value)}
+                                                formatter={(value) => formatCurrency(value as number)}
                                             />
                                             <Bar dataKey="value" fill="#8b5cf6" radius={[0, 4, 4, 0]} barSize={20} />
                                         </BarChart>
