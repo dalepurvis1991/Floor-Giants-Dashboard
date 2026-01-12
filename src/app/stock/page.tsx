@@ -206,146 +206,150 @@ export default function StockPage() {
             </section>
 
             {/* KPI Grid */}
-            <section className={styles.statsGrid}>
-                <StatCard
-                    title="Total Valuation"
-                    value={formatCurrency(data.totalValuation)}
-                    subValue="Cost Value"
-                    variant="default"
-                    helpText="Total cost value of all stock currently on hand."
-                />
-                <StatCard
-                    title="Stock Alerts"
-                    value={criticalAlerts}
-                    subValue="Critical Items"
-                    variant={criticalAlerts > 0 ? 'danger' : 'success'}
-                    helpText="Items with 0 stock or below lead time requirements."
-                />
-                <StatCard
-                    title="Scrap / Write-offs"
-                    value={formatCurrency(data.totalScrapValue)}
-                    subValue="This Period"
-                    variant="warning"
-                    helpText="Value of items scrapped or written off in the selected period."
-                />
-                <StatCard
-                    title="Slow Moving"
-                    value={data.alerts.filter(a => a.status === 'slow_mover').length}
-                    subValue="> 14 days no sales"
-                    variant="default"
-                    helpText="Items with stock but no sales in the filtered period."
-                />
-            </section>
+            {data && (
+                <section className={styles.statsGrid}>
+                    <StatCard
+                        title="Total Valuation"
+                        value={formatCurrency(data.totalValuation)}
+                        subValue="Cost Value"
+                        variant="default"
+                        helpText="Total cost value of all stock currently on hand."
+                    />
+                    <StatCard
+                        title="Stock Alerts"
+                        value={criticalAlerts}
+                        subValue="Critical Items"
+                        variant={criticalAlerts > 0 ? 'danger' : 'success'}
+                        helpText="Items with 0 stock or below lead time requirements."
+                    />
+                    <StatCard
+                        title="Scrap / Write-offs"
+                        value={formatCurrency(data.totalScrapValue)}
+                        subValue="This Period"
+                        variant="warning"
+                        helpText="Value of items scrapped or written off in the selected period."
+                    />
+                    <StatCard
+                        title="Slow Moving"
+                        value={data.alerts.filter(a => a.status === 'slow_mover').length}
+                        subValue="> 14 days no sales"
+                        variant="default"
+                        helpText="Items with stock but no sales in the filtered period."
+                    />
+                </section>
+            )}
 
             {/* Main Content Area */}
-            <section className={styles.mainContent}>
-                {/* Left Column */}
-                <div className="flex flex-col gap-6">
-                    <ChartTableToggle
-                        title="Valuation by Category"
-                        helpText="Stock value distribution across product categories."
-                        chart={
-                            <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                    <Pie
-                                        data={data.valuationByCategory}
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={60}
-                                        outerRadius={80}
-                                        paddingAngle={5}
-                                        dataKey="value"
-                                        nameKey="category"
-                                    >
-                                        {data.valuationByCategory.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                        ))}
-                                    </Pie>
-                                    <RechartsTooltip
-                                        contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}
-                                        formatter={(value) => formatCurrency(value as number)}
-                                    />
-                                    <Legend verticalAlign="bottom" height={36} />
-                                </PieChart>
-                            </ResponsiveContainer>
-                        }
-                        tableData={data.valuationByCategory}
-                        tableColumns={[
-                            { header: 'Category', accessor: 'category' },
-                            { header: 'Items', accessor: 'itemCount', className: 'text-right' },
-                            { header: 'Value', accessor: (row) => formatCurrency(row.value), className: 'text-right' },
-                        ]}
-                    />
+            {data && (
+                <section className={styles.mainContent}>
+                    {/* Left Column */}
+                    <div className="flex flex-col gap-6">
+                        <ChartTableToggle
+                            title="Valuation by Category"
+                            helpText="Stock value distribution across product categories."
+                            chart={
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie
+                                            data={data.valuationByCategory}
+                                            cx="50%"
+                                            cy="50%"
+                                            innerRadius={60}
+                                            outerRadius={80}
+                                            paddingAngle={5}
+                                            dataKey="value"
+                                            nameKey="category"
+                                        >
+                                            {data.valuationByCategory.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                            ))}
+                                        </Pie>
+                                        <RechartsTooltip
+                                            contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}
+                                            formatter={(value) => formatCurrency(value as number)}
+                                        />
+                                        <Legend verticalAlign="bottom" height={36} />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            }
+                            tableData={data.valuationByCategory}
+                            tableColumns={[
+                                { header: 'Category', accessor: 'category' },
+                                { header: 'Items', accessor: 'itemCount', className: 'text-right' },
+                                { header: 'Value', accessor: (row) => formatCurrency(row.value), className: 'text-right' },
+                            ]}
+                        />
 
-                    <div className={styles.tableCard}>
-                        <div className="flex items-center gap-2 mb-4">
-                            <TrendingUp size={20} className="text-emerald-400" />
-                            <h2 className="text-lg font-semibold text-slate-100">Restock Suggestions</h2>
-                            <HelpTooltip text="High revenue items with low stock (< 2 units)." />
-                        </div>
-                        <div className={styles.tableContainer} style={{ maxHeight: '300px' }}>
-                            <table className={styles.table}>
-                                <thead>
-                                    <tr>
-                                        <th>Product</th>
-                                        <th className="text-right">Stock</th>
-                                        <th className="text-right">Revenue</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {data.suggestions.map((p: any) => (
-                                        <tr key={p.id} className={styles.activeRow}>
-                                            <td>
-                                                <div>{p.name}</div>
-                                                <div className="text-xs text-slate-400">{p.sku}</div>
-                                            </td>
-                                            <td className="text-right text-red-400 font-bold">{p.stockLevel}</td>
-                                            <td className="text-right">{formatCurrency(p.revenue)}</td>
+                        <div className={styles.tableCard}>
+                            <div className="flex items-center gap-2 mb-4">
+                                <TrendingUp size={20} className="text-emerald-400" />
+                                <h2 className="text-lg font-semibold text-slate-100">Restock Suggestions</h2>
+                                <HelpTooltip text="High revenue items with low stock (< 2 units)." />
+                            </div>
+                            <div className={styles.tableContainer} style={{ maxHeight: '300px' }}>
+                                <table className={styles.table}>
+                                    <thead>
+                                        <tr>
+                                            <th>Product</th>
+                                            <th className="text-right">Stock</th>
+                                            <th className="text-right">Revenue</th>
                                         </tr>
-                                    ))}
-                                    {data.suggestions.length === 0 && (
-                                        <tr><td colSpan={3} className="p-4 text-center text-slate-500">No suggestions available</td></tr>
-                                    )}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                        {data.suggestions.map((p: any) => (
+                                            <tr key={p.id} className={styles.activeRow}>
+                                                <td>
+                                                    <div>{p.name}</div>
+                                                    <div className="text-xs text-slate-400">{p.sku}</div>
+                                                </td>
+                                                <td className="text-right text-red-400 font-bold">{p.stockLevel}</td>
+                                                <td className="text-right">{formatCurrency(p.revenue)}</td>
+                                            </tr>
+                                        ))}
+                                        {data.suggestions.length === 0 && (
+                                            <tr><td colSpan={3} className="p-4 text-center text-slate-500">No suggestions available</td></tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                {/* Right Column - Alerts List */}
-                <div className="flex flex-col gap-6">
-                    <div className={styles.tableCard}>
-                        <div className="flex items-center gap-2 mb-4">
-                            <AlertTriangle size={20} className="text-amber-400" />
-                            <h2 className="text-lg font-semibold text-slate-100">Critical Alerts</h2>
-                            <HelpTooltip text="Items items that have hit zero stock or are below critical thresholds." />
-                        </div>
-                        <div className={styles.tableContainer} style={{ maxHeight: '600px' }}>
-                            {data.alerts.map((alert: any) => (
-                                <div key={alert.id} className="p-3 mb-2 rounded bg-slate-800/50 border border-slate-700 hover:border-slate-600 transition-colors">
-                                    <div className="flex justify-between items-start mb-1">
-                                        <span className={`text-xs font-bold px-2 py-0.5 rounded ${alert.status === 'out_of_stock' ? 'bg-red-500/20 text-red-400' :
-                                            alert.status === 'critical_lead' ? 'bg-orange-500/20 text-orange-400' :
-                                                'bg-slate-500/20 text-slate-400'
-                                            }`}>
-                                            {alert.status.replace('_', ' ').toUpperCase()}
-                                        </span>
-                                        <span className="text-xs text-slate-500">Stock: {alert.currentStock}</span>
+                    {/* Right Column - Alerts List */}
+                    <div className="flex flex-col gap-6">
+                        <div className={styles.tableCard}>
+                            <div className="flex items-center gap-2 mb-4">
+                                <AlertTriangle size={20} className="text-amber-400" />
+                                <h2 className="text-lg font-semibold text-slate-100">Critical Alerts</h2>
+                                <HelpTooltip text="Items items that have hit zero stock or are below critical thresholds." />
+                            </div>
+                            <div className={styles.tableContainer} style={{ maxHeight: '600px' }}>
+                                {data.alerts.map((alert: any) => (
+                                    <div key={alert.id} className="p-3 mb-2 rounded bg-slate-800/50 border border-slate-700 hover:border-slate-600 transition-colors">
+                                        <div className="flex justify-between items-start mb-1">
+                                            <span className={`text-xs font-bold px-2 py-0.5 rounded ${alert.status === 'out_of_stock' ? 'bg-red-500/20 text-red-400' :
+                                                alert.status === 'critical_lead' ? 'bg-orange-500/20 text-orange-400' :
+                                                    'bg-slate-500/20 text-slate-400'
+                                                }`}>
+                                                {alert.status.replace('_', ' ').toUpperCase()}
+                                            </span>
+                                            <span className="text-xs text-slate-500">Stock: {alert.currentStock}</span>
+                                        </div>
+                                        <div className="text-sm font-medium text-slate-200">{alert.name}</div>
+                                        <div className="text-xs text-slate-400 mb-1">{alert.sku}</div>
+                                        {alert.message && (
+                                            <div className="text-xs text-amber-500 mt-1">{alert.message}</div>
+                                        )}
                                     </div>
-                                    <div className="text-sm font-medium text-slate-200">{alert.name}</div>
-                                    <div className="text-xs text-slate-400 mb-1">{alert.sku}</div>
-                                    {alert.message && (
-                                        <div className="text-xs text-amber-500 mt-1">{alert.message}</div>
-                                    )}
-                                </div>
-                            ))}
-                            {data.alerts.length === 0 && (
-                                <div className="p-4 text-center text-slate-500">No alerts found</div>
-                            )}
+                                ))}
+                                {data.alerts.length === 0 && (
+                                    <div className="p-4 text-center text-slate-500">No alerts found</div>
+                                )}
+                            </div>
                         </div>
                     </div>
-                </div>
-            </section>
+                </section>
+            )}
         </div>
     );
 }
