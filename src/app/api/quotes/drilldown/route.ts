@@ -54,7 +54,10 @@ export async function GET(request: NextRequest) {
             const quoteIds = filteredQuotes.map(q => q.id);
             if (quoteIds.length > 0) {
                 const lines = await getSaleOrderLines(quoteIds, credentials);
-                const productIds = Array.from(new Set(lines.map(l => l.product_id[0])));
+                const productIds = Array.from(new Set(
+                    lines.map(l => Array.isArray(l.product_id) ? l.product_id[0] : null)
+                        .filter((id): id is number => id !== null)
+                ));
                 const products = await getProducts(productIds, credentials);
                 const categories = await getProductCategories(credentials);
                 const catMap = new Map(categories.map(c => [c.id, c.complete_name || c.name]));
@@ -67,7 +70,8 @@ export async function GET(request: NextRequest) {
 
                 const matchingQuoteIds = new Set<number>();
                 lines.forEach(l => {
-                    const prod = productInfo.get(l.product_id[0]);
+                    const pid = Array.isArray(l.product_id) ? l.product_id[0] : null;
+                    const prod = pid ? productInfo.get(pid) : null;
                     if (prod) {
                         const mapped = mapToCategory(catMap.get(prod.catId) || '', prod.sku, prod.name);
                         if (mapped === value) {
