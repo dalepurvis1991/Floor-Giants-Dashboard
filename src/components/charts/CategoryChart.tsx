@@ -91,7 +91,7 @@ export default function CategoryChart({ data, onCategoryClick }: CategoryChartPr
                                 dataKey="sales"
                                 radius={[0, 6, 6, 0]}
                                 style={{ cursor: onCategoryClick ? 'pointer' : 'default' }}
-                                onClick={(entry) => onCategoryClick?.(entry.category)}
+                                onClick={(entry: any) => onCategoryClick?.(entry.category)}
                             >
                                 {data.map((entry, index) => (
                                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -112,7 +112,7 @@ export default function CategoryChart({ data, onCategoryClick }: CategoryChartPr
                                 innerRadius={60}
                                 paddingAngle={2}
                                 style={{ cursor: onCategoryClick ? 'pointer' : 'default' }}
-                                onClick={(entry) => onCategoryClick?.(entry.category)}
+                                onClick={(entry: any) => onCategoryClick?.(entry.category)}
                             >
                                 {data.map((entry, index) => (
                                     <Cell key={entry.category} fill={COLORS[index % COLORS.length]} />
