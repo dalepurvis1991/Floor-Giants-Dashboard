@@ -10,6 +10,7 @@ import DashboardFilters from '@/components/dashboard/DashboardFilters';
 import ChartTableToggle from '@/components/ui/ChartTableToggle';
 import HelpTooltip from '@/components/ui/HelpTooltip';
 import QuoteDetailModal from '@/components/modals/QuoteDetailModal';
+import QuotesModal from '@/components/modals/QuotesModal';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend
 } from 'recharts';
