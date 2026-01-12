@@ -98,6 +98,19 @@ export interface BestSeller {
     stockLevel: number;
 }
 
+export interface ProductStockStat {
+    id: number;
+    name: string;
+    sku: string;
+    quantity: number;
+    revenue: number;
+    margin: number;
+    marginPercent: number;
+    stockLevel: number;
+    forecastedStock: number;
+    type: string;
+}
+
 export interface StockValue {
     category: string;
     value: number;

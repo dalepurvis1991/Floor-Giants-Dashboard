@@ -16,10 +16,36 @@ import {
 interface StockMetrics {
     totalValuation: number;
     valuationByCategory: { category: string; value: number; itemCount: number }[];
-    alerts: any[];
-    scraps: any[];
+    alerts: {
+        id: number;
+        name: string;
+        sku: string;
+        status: 'low' | 'out_of_stock' | 'slow_mover' | 'critical_lead';
+        currentStock: number;
+        forecastedStock: number;
+        avgWeeklySales: number;
+        message?: string;
+    }[];
+    scraps: {
+        productId: number;
+        name: string;
+        quantity: number;
+        value: number;
+        date: string;
+    }[];
     totalScrapValue: number;
-    suggestions: any[];
+    suggestions: {
+        id: number;
+        name: string;
+        sku: string;
+        quantity: number;
+        revenue: number;
+        margin: number;
+        marginPercent: number;
+        stockLevel: number;
+        forecastedStock: number;
+        type: string;
+    }[];
 }
 
 export default function StockPage() {
@@ -114,7 +140,7 @@ export default function StockPage() {
         );
     }
 
-    const criticalAlerts = data.alerts.filter(a => a.status === 'out_of_stock' || a.status === 'critical_lead').length;
+    const criticalAlerts = data?.alerts ? data.alerts.filter(a => a.status === 'out_of_stock' || a.status === 'critical_lead').length : 0;
 
     return (
         <div className={styles.container}>
